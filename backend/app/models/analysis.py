@@ -24,6 +24,12 @@ class Analysis(Document):
     missing_information: List[str] = Field(default_factory=list)
     positive_findings: List[Dict] = Field(default_factory=list)
 
+    # Version 2.1 Upgraded Metrics
+    input_quality_score: Optional[int] = None
+    verification_status: Optional[Dict[str, str]] = None
+    agreement_explanation: Optional[str] = None
+    decision_trace: List[str] = Field(default_factory=list)
+
     # AI Content
     ai_summary: Optional[str] = None
     red_flags: List[Dict[str, str]] = Field(default_factory=list)  # {title, description, severity}
@@ -31,7 +37,7 @@ class Analysis(Document):
     recommendations: List[str] = Field(default_factory=list)
 
     # Technical Detections & Evidence
-    evidence: List[Dict] = Field(default_factory=list)  # {category, factor_name, description, points_deducted, severity}
+    evidence: List[Dict] = Field(default_factory=list)  # {id, rule_id, title, category, severity, score, matched_text, reason, evidence_type, confidence, source}
     website_data: Optional[Dict] = None
     email_data: Optional[Dict] = None
     pdf_file_path: Optional[str] = None

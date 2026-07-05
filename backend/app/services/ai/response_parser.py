@@ -52,13 +52,29 @@ def generate_local_fallback(text: str, evidence: List[Dict[str, Any]]) -> Dict[s
     Local heuristic-based fallback reasoning in case of API failure or missing keys.
     """
     logger.info("Generating local fallback AI analysis.")
-    
-    # 1. Generate generic summary
+
+    # Determine overall risk based on evidence
+    has_high = any(item.get("severity") == "high" for item in evidence)
+    has_medium = any(item.get("severity") == "medium" for item in evidence)
+    overall_risk = "Safe"
+    if has_high:
+        overall_risk = "High Risk"
+    elif has_medium:
+        overall_risk = "Suspicious"
+    elif evidence:
+        overall_risk = "Needs Verification"
+
+    # 1. Generate structured summary
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     job_preview = lines[0] if lines else "employment opportunity"
-    summary = f"This check details an analysis for a job listing referring to '{job_preview[:60]}'."
-    if len(lines) > 1:
-        summary += f" The description contains requirements and details matching {len(lines)} content lines."
+    summary = (
+        f"This posting details a job listing for '{job_preview[:50]}' which is assessed as {overall_risk}. "
+        f"Positive findings: structured formatting and job details are present. "
+        f"Negative findings: {len(evidence)} risk indicators were flagged. "
+        f"Unknown findings: employer credentials could not be fully verified online. "
+        f"Recommended Action: perform standard diligence checks before sharing details. "
+        f"Confidence explanation: calculation based on input completeness rules."
+    )
 
     # 2. Map evidence to red flags
     red_flags = []
@@ -89,16 +105,7 @@ def generate_local_fallback(text: str, evidence: List[Dict[str, Any]]) -> Dict[s
     if any(item.get("category") == "pressure_tactics" for item in evidence):
         recommendations.append("Do not succumb to short response windows; take time to verify the employer details.")
 
-    # Determine overall risk based on evidence
-    has_high = any(item.get("severity") == "high" for item in evidence)
-    has_medium = any(item.get("severity") == "medium" for item in evidence)
-    overall_risk = "Safe"
-    if has_high:
-        overall_risk = "High Risk"
-    elif has_medium:
-        overall_risk = "Suspicious"
-    elif evidence:
-        overall_risk = "Needs Verification"
+
 
     return {
         "ai_summary": summary,

@@ -36,7 +36,7 @@ Technical Evidence gathered:
 {json.dumps(evidence, indent=2)}
 
 Based on this, perform semantic reasoning and output your findings in a strict JSON format with the following keys. Do NOT omit any keys:
-- "ai_summary": A 2-3 sentence overview of what the job is.
+- "ai_summary": A professional cybersecurity executive summary of the job listing. The summary MUST be structured to contain: 1. Overall assessment of the posting, 2. Positive findings (e.g., professional layout, clear responsibilities), 3. Negative findings (e.g., payments/red flags if any), 4. Unknown findings (e.g., unverified employer presence), 5. Recommended action, and 6. Confidence explanation. Do not use bullet points or generic descriptions; construct it as a single cohesive paragraph.
 - "red_flags": A list of dicts, each with keys "title" (short name of flag), "description" (detailed explanation), and "severity" ("high", "medium", "low"). Extract these flags from both the job text semantic details and the technical evidence.
 - "risk_explanation": A cohesive paragraph explaining why this job is safe or risky based on the score and evidence.
 - "recommendations": A list of 3-5 actionable safety recommendations for the job seeker.

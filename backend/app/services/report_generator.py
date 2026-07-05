@@ -1,6 +1,7 @@
 import os
 import logging
 from datetime import datetime
+from typing import List, Dict
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -19,18 +20,39 @@ def get_risk_color(category: str) -> colors.Color:
         return colors.HexColor("#EF4444")  # Red
     elif "suspicious" in cat:
         return colors.HexColor("#F97316")  # Orange
-    elif "review" in cat:
-        return colors.HexColor("#3B82F6")  # Blue for Review Required
+    elif "manual" in cat or "review" in cat:
+        return colors.HexColor("#3B82F6")  # Blue for Manual Review Recommended
     elif "verification" in cat:
         return colors.HexColor("#EAB308")  # Yellow
     else:
         return colors.HexColor("#10B981")  # Green
 
+def format_status_cell(label: str, state: str, body_style: ParagraphStyle) -> List[Paragraph]:
+    """
+    Color codes the verification state for the status panel.
+    """
+    state_upper = state.upper()
+    
+    # Color mappings
+    if state_upper in ["VERIFIED", "VALID", "REACHABLE", "VALID HTTPS"]:
+        color = "#10B981"  # Green
+    elif state_upper in ["PARTIALLY VERIFIED"]:
+        color = "#EAB308"  # Yellow
+    elif state_upper in ["INVALID", "UNREACHABLE", "NOT FOUND"]:
+        color = "#EF4444"  # Red
+    else:
+        color = "#64748B"  # Gray for Unknown
+        
+    return [
+        Paragraph(f"<b>{label}:</b>", body_style),
+        Paragraph(f"<font color='{color}'><b>{state}</b></font>", body_style)
+    ]
+
 def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     """
     Generates an upgraded, professional, explainable PDF report for a job analysis scan.
     """
-    logger.info(f"Generating V2.0 PDF report for analysis {analysis.id} at: {output_path}")
+    logger.info(f"Generating V2.1 PDF report for analysis {analysis.id} at: {output_path}")
     
     # 1. Page template setup
     doc = SimpleDocTemplate(
@@ -56,31 +78,31 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=22,
-        leading=26,
+        fontSize=20,
+        leading=24,
         textColor=primary_color,
-        spaceAfter=10
+        spaceAfter=6
     )
     
     subtitle_style = ParagraphStyle(
         'DocSubtitle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=9,
+        fontSize=8.5,
         leading=11,
         textColor=muted_text,
-        spaceAfter=15
+        spaceAfter=12
     )
     
     section_heading = ParagraphStyle(
         'SectionHeading',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=12,
-        leading=16,
+        fontSize=11,
+        leading=14,
         textColor=dark_text,
-        spaceBefore=14,
-        spaceAfter=6,
+        spaceBefore=10,
+        spaceAfter=4,
         keepWithNext=True
     )
     
@@ -88,29 +110,29 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         'Body',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=9.5,
-        leading=13.5,
+        fontSize=9,
+        leading=12.5,
         textColor=dark_text,
-        spaceAfter=8
+        spaceAfter=6
     )
 
     bullet_style = ParagraphStyle(
         'Bullet',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=9.5,
-        leading=13.5,
+        fontSize=9,
+        leading=12.5,
         textColor=dark_text,
         leftIndent=15,
         firstLineIndent=-10,
-        spaceAfter=4
+        spaceAfter=3
     )
     
     table_header_style = ParagraphStyle(
         'TableHeader',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=9.5,
+        fontSize=9,
         leading=11,
         textColor=colors.white
     )
@@ -119,7 +141,7 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         'TableCell',
         parent=styles['Normal'],
         fontName='Helvetica',
-        fontSize=8.5,
+        fontSize=8,
         leading=11,
         textColor=dark_text
     )
@@ -127,10 +149,10 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     story = []
     
     # --- Header Banner ---
-    story.append(Paragraph("RecruitSafe Verification Report (V2.0)", title_style))
+    story.append(Paragraph("RecruitSafe Cybersecurity Audit Assessment", title_style))
     created_str = analysis.created_at.strftime("%B %d, %Y at %H:%M UTC")
-    story.append(Paragraph(f"REPORT ID: {analysis.id}  |  GENERATED: {created_str}", subtitle_style))
-    story.append(Spacer(1, 5))
+    story.append(Paragraph(f"REPORT ID: {analysis.id}  |  VERIFIED PORTAL V2.1  |  GENERATED: {created_str}", subtitle_style))
+    story.append(Spacer(1, 4))
     
     # --- Dual Score Cards ---
     trust = analysis.trust_score if analysis.trust_score is not None else 0
@@ -148,32 +170,30 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         [
             Paragraph("<b>Trust Score:</b>", body_style),
             Paragraph(f"<b>{trust}/100</b>", body_style),
-            Paragraph("<b>AI-Rule Agreement:</b>", body_style),
-            Paragraph(f"<b>{agreement}%</b>", body_style)
+            Paragraph("<b>Input Quality Score:</b>", body_style),
+            Paragraph(f"<b>{analysis.input_quality_score or 100}/100</b>", body_style)
         ]
     ]
-    score_table = Table(score_data, colWidths=[110, 150, 130, 140])
+    score_table = Table(score_data, colWidths=[100, 160, 130, 140])
     score_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
         ('ALIGN', (0,0), (-1,-1), 'LEFT'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
-        ('BOX', (0,0), (-1,-1), 1, primary_color),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ('BOX', (0,0), (-1,-1), 1.2, primary_color),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
     ]))
     story.append(score_table)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))
 
-    # --- Risk Meter (Dynamic 1-Row Progress Bar Table) ---
-    # Width constraint: total width = 530 points
+    # --- Risk Progress Bar ---
     trust_width = max(10, min(520, (trust / 100) * 530))
     remainder_width = 530 - trust_width
-    
     meter_data = [["", ""]]
-    meter_table = Table(meter_data, colWidths=[trust_width, remainder_width], rowHeights=[10])
+    meter_table = Table(meter_data, colWidths=[trust_width, remainder_width], rowHeights=[8])
     meter_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (0,0), risk_color),
         ('BACKGROUND', (1,0), (1,0), colors.HexColor("#E2E8F0")),
@@ -182,132 +202,191 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         ('LEFTPADDING', (0,0), (-1,-1), 0),
         ('RIGHTPADDING', (0,0), (-1,-1), 0),
     ]))
-    story.append(Paragraph("<b>Trust Score Risk Meter:</b>", body_style))
+    story.append(Paragraph("<b>Opportunity Legitimacy Trust Meter:</b>", body_style))
     story.append(meter_table)
-    story.append(Spacer(1, 10))
+    story.append(Spacer(1, 8))
     
     # --- Executive AI Summary ---
     story.append(Paragraph("Executive Summary", section_heading))
     summary_text = analysis.ai_summary or "No summary generated."
     story.append(Paragraph(summary_text, body_style))
     
-    # --- Detailed Risk Explanation ---
-    story.append(Paragraph("Detailed Risk Explanation", section_heading))
-    explanation_text = analysis.risk_explanation or "No explanation generated."
-    story.append(Paragraph(explanation_text, body_style))
+    # --- AI-Rule Agreement Explanation ---
+    story.append(Paragraph("AI-Rule Agreement Details", section_heading))
+    agreement_text = getattr(analysis, "agreement_explanation", None)
+    if not agreement_text:
+        agreement_text = f"Consensus score evaluated at {agreement}%. Rule engine and AI classification are in alignment."
+    story.append(Paragraph(agreement_text, body_style))
 
-    # --- Contradictions & Missing Information Alerts ---
-    if analysis.contradictions or analysis.missing_information:
-        alerts_data = []
-        if analysis.contradictions:
-            contr_list = "<br/>".join([f"• {c}" for c in analysis.contradictions])
-            alerts_data.append([Paragraph(f"<b>Detected Contradictions:</b><br/>{contr_list}", body_style)])
-        if analysis.missing_information:
-            miss_list = ", ".join(analysis.missing_information)
-            alerts_data.append([Paragraph(f"<b>Missing Information:</b> {miss_list}", body_style)])
-            
-        alerts_table = Table(alerts_data, colWidths=[530])
-        alerts_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FFFBEB")),  # Light warning amber
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#FCD34D")),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 10),
-            ('RIGHTPADDING', (0,0), (-1,-1), 10),
-        ]))
-        story.append(alerts_table)
-        story.append(Spacer(1, 10))
+    # --- Verification Status Panel ---
+    story.append(Paragraph("Verification Status Footprint Panel", section_heading))
+    v_status = getattr(analysis, "verification_status", None) or {}
+    
+    p_web = v_status.get("Website", "Unknown")
+    p_email = v_status.get("Corporate Email", "Unknown")
+    p_whois = v_status.get("WHOIS", "Unknown")
+    p_dns = v_status.get("DNS", "Unknown")
+    p_ssl = v_status.get("SSL", "Unknown")
+    p_linkedin = v_status.get("LinkedIn", "Not Found")
+    p_priv = v_status.get("Privacy Policy", "Not Found")
+    p_terms = v_status.get("Terms & Conditions", "Not Found")
+    p_contact = v_status.get("Contact Page", "Not Found")
+    p_careers = v_status.get("Careers Page", "Not Found")
+    
+    # Build 2-column key-value status table
+    row1 = format_status_cell("Company Website", p_web, body_style) + format_status_cell("Corporate Email", p_email, body_style)
+    row2 = format_status_cell("WHOIS Registration", p_whois, body_style) + format_status_cell("DNS Resolution", p_dns, body_style)
+    row3 = format_status_cell("SSL Connection", p_ssl, body_style) + format_status_cell("LinkedIn Link", p_linkedin, body_style)
+    row4 = format_status_cell("Privacy Policy", p_priv, body_style) + format_status_cell("Terms & Conditions", p_terms, body_style)
+    row5 = format_status_cell("Contact Page", p_contact, body_style) + format_status_cell("Careers Page", p_careers, body_style)
+    
+    panel_data = [row1, row2, row3, row4, row5]
+    panel_table = Table(panel_data, colWidths=[130, 130, 140, 130])
+    panel_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FAFAFA")),
+        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
+        ('BOX', (0,0), (-1,-1), 0.8, colors.HexColor("#CBD5E1")),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(panel_table)
+    story.append(Spacer(1, 8))
 
-    # --- Positive Findings Section ---
-    positives = getattr(analysis, "positive_findings", [])
+    # --- Grouped Evidence Sections ---
+    evidence_list = getattr(analysis, "evidence", []) or []
+    positive_findings = getattr(analysis, "positive_findings", []) or []
+    
+    positives = [item for item in positive_findings if item.get("evidence_type", "positive") == "positive"]
+    negatives = [item for item in evidence_list if item.get("evidence_type", "negative") == "negative"]
+    unknowns = [item for item in evidence_list if item.get("evidence_type", "unknown") == "unknown"]
+
+    # 1. Verified Positive Evidence
     if positives:
-        story.append(Paragraph("Positive Safety Signals & Trust Bonuses", section_heading))
+        story.append(Paragraph("Verified Positive Findings", section_heading))
         pos_data = [
             [
-                Paragraph("<b>Safety Factor</b>", table_header_style),
-                Paragraph("<b>Bonus</b>", table_header_style),
-                Paragraph("<b>Verification Details</b>", table_header_style)
+                Paragraph("<b>Audit Signal</b>", table_header_style),
+                Paragraph("<b>Rule ID</b>", table_header_style),
+                Paragraph("<b>Source</b>", table_header_style),
+                Paragraph("<b>Audit Details</b>", table_header_style)
             ]
         ]
         for item in positives:
-            title = item.get("title") or item.get("factor_name") or "Verified Indicator"
-            score = item.get("score") or item.get("points_deducted") or 0
-            desc = item.get("description") or ""
+            title = item.get("title") or "Positive Signal"
+            rule_id = item.get("rule_id") or "POS_000"
+            src = item.get("source") or "Rule Engine"
+            desc = item.get("reason") or item.get("description") or ""
             pos_data.append([
                 Paragraph(f"<b>{title}</b>", table_cell_style),
-                Paragraph(f"<font color='#10B981'><b>+{score} pts</b></font>", table_cell_style),
+                Paragraph(rule_id, table_cell_style),
+                Paragraph(src, table_cell_style),
                 Paragraph(desc, table_cell_style)
             ])
             
-        pos_table = Table(pos_data, colWidths=[140, 80, 310])
+        pos_table = Table(pos_data, colWidths=[120, 70, 100, 240])
         pos_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#10B981")),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
             ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
             ('BOX', (0,0), (-1,-1), 0.5, border_color),
         ]))
         story.append(pos_table)
-        story.append(Spacer(1, 10))
-    
-    # --- Red Flags / Technical Evidence Section ---
-    story.append(Paragraph("Risk Findings & Technical Evidence", section_heading))
-    if not analysis.evidence:
-        story.append(Paragraph("No rule violations or domain intelligence anomalies were triggered in this scan.", body_style))
-    else:
-        evidence_data = [
+        story.append(Spacer(1, 6))
+
+    # 2. Risk Indicators (Negative Findings)
+    if negatives:
+        story.append(Paragraph("Risk Indicators & Technical Anomalies", section_heading))
+        neg_data = [
             [
-                Paragraph("<b>Violation Factor</b>", table_header_style),
-                Paragraph("<b>Severity</b>", table_header_style),
-                Paragraph("<b>Evidence & matched text</b>", table_header_style)
+                Paragraph("<b>Risk Factor</b>", table_header_style),
+                Paragraph("<b>Rule ID / Source</b>", table_header_style),
+                Paragraph("<b>Impact</b>", table_header_style),
+                Paragraph("<b>Anomalies & matched text</b>", table_header_style)
             ]
         ]
-        
-        for item in analysis.evidence:
-            severity_str = item.get('severity', 'medium').upper()
-            title = item.get('title') or item.get('factor_name') or 'Flagged Indicator'
-            score = item.get('score') or -item.get('points_deducted', 0)
-            desc = item.get('description', '')
-            matched = item.get('matched_text') or ''
-            explanation = item.get('explanation') or ''
+        for item in negatives:
+            title = item.get("title") or "Anomalous Signal"
+            rule_id = item.get("rule_id") or "NEG_000"
+            src = item.get("source") or "Rule Engine"
+            score = item.get("score") or 0
+            desc = item.get("reason") or item.get("description") or ""
+            matched = item.get("matched_text") or ""
             
-            sev_color = "#EF4444" if "HIGH" in severity_str else ("#F97316" if "MEDIUM" in severity_str else "#64748B")
-            
-            # Combine details
-            full_desc = f"{desc}<br/><i>Matched: '{matched}'</i>"
-            if explanation:
-                full_desc += f"<br/><b>Reason:</b> {explanation}"
+            full_desc = f"{desc}"
+            if matched:
+                full_desc += f"<br/><i>Matched: '{matched}'</i>"
                 
-            evidence_data.append([
+            neg_data.append([
                 Paragraph(f"<b>{title}</b>", table_cell_style),
-                Paragraph(f"<font color='{sev_color}'><b>{severity_str} ({score} pts)</b></font>", table_cell_style),
+                Paragraph(f"{rule_id}<br/>{src}", table_cell_style),
+                Paragraph(f"<font color='#EF4444'><b>{score} pts</b></font>", table_cell_style),
                 Paragraph(full_desc, table_cell_style)
             ])
             
-        evidence_table = Table(evidence_data, colWidths=[130, 100, 300])
-        evidence_table.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), primary_color),
+        neg_table = Table(neg_data, colWidths=[120, 90, 60, 260])
+        neg_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#EF4444")),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-            ('TOPPADDING', (0,0), (-1,-1), 6),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
-            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
             ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
             ('BOX', (0,0), (-1,-1), 0.5, border_color),
         ]))
-        story.append(evidence_table)
-        
-    story.append(Spacer(1, 10))
+        story.append(neg_table)
+        story.append(Spacer(1, 6))
+
+    # 3. Unknown Findings
+    if unknowns:
+        story.append(Paragraph("Unknown / Not Verifiable Parameters", section_heading))
+        unk_data = [
+            [
+                Paragraph("<b>Unverified Area</b>", table_header_style),
+                Paragraph("<b>Rule ID</b>", table_header_style),
+                Paragraph("<b>Source</b>", table_header_style),
+                Paragraph("<b>Verification Gap Details</b>", table_header_style)
+            ]
+        ]
+        for item in unknowns:
+            title = item.get("title") or "Unverified Area"
+            rule_id = item.get("rule_id") or "UNK_000"
+            src = item.get("source") or "Rule Engine"
+            desc = item.get("reason") or item.get("description") or ""
+            unk_data.append([
+                Paragraph(f"<b>{title}</b>", table_cell_style),
+                Paragraph(rule_id, table_cell_style),
+                Paragraph(src, table_cell_style),
+                Paragraph(desc, table_cell_style)
+            ])
+            
+        unk_table = Table(unk_data, colWidths=[120, 70, 100, 240])
+        unk_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#475569")),  # Slate header
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
+            ('BOX', (0,0), (-1,-1), 0.5, border_color),
+        ]))
+        story.append(unk_table)
+        story.append(Spacer(1, 6))
     
-    # --- Actionable Recommendations ---
-    story.append(Paragraph("Actionable Safety Recommendations", section_heading))
+    # --- Actionable Contextual Recommendations ---
+    story.append(Paragraph("Actionable Security Recommendations", section_heading))
     if not analysis.recommendations:
         story.append(Paragraph("• Verify recruiter identity and official corporate details before releasing credentials.", bullet_style))
         story.append(Paragraph("• Do not send payments, training deposits, or setup fees to personal bank accounts.", bullet_style))
@@ -315,7 +394,7 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         for rec in analysis.recommendations:
             story.append(Paragraph(f"• {rec}", bullet_style))
             
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 8))
     
     # --- Processing Metadata ---
     story.append(Paragraph("Processing Metadata", section_heading))

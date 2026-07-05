@@ -8,31 +8,59 @@ class RedFlag(BaseModel):
     severity: str  # "high", "medium", "low"
 
 class Evidence(BaseModel):
-    category: str  # "financial_fraud", "identity_theft", etc.
-    factor_name: Optional[str] = None
-    description: str
-    points_deducted: Optional[int] = None
-    severity: str
-    # Version 2.0 Extended Fields
-    id: Optional[str] = None
-    title: Optional[str] = None
-    score: Optional[int] = None
+    id: str
+    rule_id: str
+    title: str
+    category: str
+    severity: str  # "high", "medium", "low", "none"
+    score: int
     matched_text: Optional[str] = None
-    explanation: Optional[str] = None
+    reason: Optional[str] = None
+    evidence_type: str  # "positive", "negative", "unknown"
+    confidence: int
+    source: str  # "Rule Engine", "Website Analyzer", "Email Analyzer", "AI", "OCR", "Company Verification"
+
+    # Legacy fields kept for UI rendering backwards compatibility
+    factor_name: Optional[str] = None
+    description: Optional[str] = None
+    points_deducted: Optional[int] = None
 
     @model_validator(mode="before")
     @classmethod
     def populate_legacy_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
             data = dict(data)
-            if "factor_name" not in data and "title" in data:
-                data["factor_name"] = data["title"]
+            # Map rule_id
+            if "rule_id" not in data:
+                data["rule_id"] = "RULE_GENERIC"
+            # Map id
+            if "id" not in data:
+                data["id"] = "generic_evidence"
+            # Map title
             if "title" not in data and "factor_name" in data:
                 data["title"] = data["factor_name"]
-            if "points_deducted" not in data and "score" in data:
-                data["points_deducted"] = abs(data["score"]) if data["score"] is not None else 0
+            if "factor_name" not in data and "title" in data:
+                data["factor_name"] = data["title"]
+            # Map description
+            if "description" not in data and "reason" in data:
+                data["description"] = data["reason"]
+            if "reason" not in data and "description" in data:
+                data["reason"] = data["description"]
+            # Map score
             if "score" not in data and "points_deducted" in data:
                 data["score"] = -abs(data["points_deducted"]) if data["points_deducted"] is not None else 0
+            if "points_deducted" not in data and "score" in data:
+                data["points_deducted"] = abs(data["score"]) if data["score"] is not None else 0
+            # Map evidence_type
+            if "evidence_type" not in data:
+                score_val = data.get("score", 0)
+                data["evidence_type"] = "positive" if score_val > 0 else ("unknown" if score_val == 0 else "negative")
+            # Map confidence
+            if "confidence" not in data:
+                data["confidence"] = 10
+            # Map source
+            if "source" not in data:
+                data["source"] = "Rule Engine"
         return data
 
 class WebsiteData(BaseModel):
@@ -80,6 +108,12 @@ class AnalysisResponse(BaseModel):
     contradictions: List[str] = Field(default_factory=list)
     missing_information: List[str] = Field(default_factory=list)
     positive_findings: List[Dict] = Field(default_factory=list)
+
+    # Version 2.1 Upgraded metrics
+    input_quality_score: Optional[int] = None
+    verification_status: Optional[Dict[str, str]] = None
+    agreement_explanation: Optional[str] = None
+    decision_trace: List[str] = Field(default_factory=list)
     
     ai_summary: Optional[str] = None
     red_flags: List[RedFlag] = Field(default_factory=list)
