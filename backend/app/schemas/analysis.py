@@ -114,6 +114,11 @@ class AnalysisResponse(BaseModel):
     verification_status: Optional[Dict[str, str]] = None
     agreement_explanation: Optional[str] = None
     decision_trace: List[str] = Field(default_factory=list)
+
+    # Version 2.2 Upgraded metrics
+    email_detected: Optional[bool] = None
+    email_type: Optional[str] = None
+    hiring_workflow: Optional[Dict[str, Any]] = None
     
     ai_summary: Optional[str] = None
     red_flags: List[RedFlag] = Field(default_factory=list)

@@ -2,27 +2,153 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @theme {
-  --color-darkbg-950: #060B24;
-  --color-darkbg-900: #0A1128;
-  --color-darkbg-800: #101B3A;
-  --color-darkbg-700: #1C2541;
+  /* Brand/Primary Coffee Brown Mapping */
+  --color-indigo-50: #F6F1EB;
+  --color-indigo-100: #E8DED2;
+  --color-indigo-200: #C6A27E;
+  --color-indigo-500: #8B5E3C;
+  --color-indigo-600: #6F4E37; /* Coffee Brown */
+  --color-indigo-700: #5A3F2C; /* Coffee Brown Hover */
+  --color-indigo-900: #4A3225;
+  --color-indigo-950: #4A3225;
+
+  /* Neutral Grey & Slate Override (Text and backgrounds) */
+  --color-slate-50: #FCFAF7;  /* Warm Cream Light background */
+  --color-slate-100: #F6F1EB; /* Light secondary background */
+  --color-slate-200: #E8DED2; /* Light borders */
+  --color-slate-300: #C6A27E; /* Accent Brown */
+  --color-slate-400: #6B7280; /* Secondary text */
+  --color-slate-500: #6B7280; 
+  --color-slate-800: #1E1E1E; /* Primary text light */
+  --color-slate-900: #F8F5F2; /* Sidebar light */
+  --color-slate-950: #FCFAF7; /* Main background light */
+
+  /* State indicators */
+  --color-emerald-50: #E8F5E9;
+  --color-emerald-100: #C8E6C9;
+  --color-emerald-600: #2E7D32;
   
-  --color-brand-500: #6366F1;
-  --color-brand-600: #4F46E5;
-  --color-brand-700: #4338CA;
+  --color-amber-50: #FFF9C4;
+  --color-amber-100: #FFF59D;
+  --color-amber-600: #B7791F;
   
-  --color-risk-safe: #10B981;
-  --color-risk-verify: #EAB308;
-  --color-risk-suspicious: #F97316;
-  --color-risk-danger: #EF4444;
+  --color-orange-50: #FFE0B2;
+  --color-orange-100: #FFCC80;
+  --color-orange-600: #B7791F;
   
+  --color-red-50: #FFEBEE;
+  --color-red-100: #FFCDD2;
+  --color-red-600: #C53030;
+
   --font-sans: "Outfit", "Inter", sans-serif;
+}
+
+/* Scoped Overrides for Dark Mode */
+.dark {
+  /* Dark Theme Scoping overrides */
+  --color-slate-50: #121212;  /* Dark background */
+  --color-slate-100: #2B2B2B; /* Secondary card background */
+  --color-slate-200: rgba(255,255,255,0.08); /* Dark borders */
+  --color-slate-400: #C7C7C7; /* Secondary text */
+  --color-slate-500: #C7C7C7; 
+  --color-slate-800: #F8F8F8; /* Primary text dark */
+  --color-slate-900: #181818; /* Dark sidebar */
+  --color-slate-950: #121212;
+
+  --color-indigo-50: #2B2B2B;
+  --color-indigo-100: rgba(255,255,255,0.08);
+  --color-indigo-200: #C6A27E;
+  --color-indigo-400: #C6A27E;
+  --color-indigo-500: #8B5E3C;
+  --color-indigo-600: #8B5E3C; /* Dark Primary Brown */
+  --color-indigo-700: #A06D47; /* Dark Primary Brown Hover */
+  --color-indigo-900: #C6A27E;
+
+  /* Dark State indicators */
+  --color-emerald-50: rgba(76, 175, 80, 0.15);
+  --color-emerald-100: rgba(76, 175, 80, 0.25);
+  --color-emerald-400: #4CAF50;
+  --color-emerald-600: #4CAF50;
+  --color-emerald-900: rgba(76, 175, 80, 0.2);
+
+  --color-amber-50: rgba(230, 162, 60, 0.15);
+  --color-amber-100: rgba(230, 162, 60, 0.25);
+  --color-amber-400: #E6A23C;
+  --color-amber-600: #E6A23C;
+  --color-amber-900: rgba(230, 162, 60, 0.2);
+
+  --color-orange-50: rgba(230, 162, 60, 0.15);
+  --color-orange-100: rgba(230, 162, 60, 0.25);
+  --color-orange-400: #E6A23C;
+  --color-orange-600: #E6A23C;
+  --color-orange-900: rgba(230, 162, 60, 0.2);
+
+  --color-red-50: rgba(239, 83, 80, 0.15);
+  --color-red-100: rgba(239, 83, 80, 0.25);
+  --color-red-400: #EF5350;
+  --color-red-650: #EF5350;
+  --color-red-600: #EF5350;
+  --color-red-900: rgba(239, 83, 80, 0.2);
 }
 
 body {
   font-family: "Outfit", "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-slate-50);
+  color: var(--color-slate-800);
+}
+
+/* Sidebar Specific Overrides */
+aside {
+  background-color: #F8F5F2 !important;
+}
+.dark aside {
+  background-color: #181818 !important;
+}
+
+/* Header Specific Overrides */
+header {
+  background-color: #FCFAF7 !important;
+}
+.dark header {
+  background-color: #121212 !important;
+}
+
+/* Cards background overrides */
+.bg-white {
+  background-color: #FFFFFF !important;
+}
+.dark .bg-white {
+  background-color: #222222 !important;
+}
+.dark .bg-slate-900 {
+  background-color: #222222 !important;
+}
+.dark .bg-white\/90 {
+  background-color: rgba(34, 34, 34, 0.9) !important;
+}
+.dark .bg-white\/80 {
+  background-color: rgba(34, 34, 34, 0.8) !important;
+}
+
+/* Focus and input styling overrides */
+input, textarea, select {
+  border-color: #E8DED2 !important;
+}
+.dark input, .dark textarea, .dark select {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: #2B2B2B !important;
+  color: #F8F8F8 !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: #6F4E37 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(111, 78, 55, 0.2) !important;
+}
+.dark input:focus, .dark textarea:focus, .dark select:focus {
+  border-color: #8B5E3C !important;
+  box-shadow: 0 0 0 2px rgba(139, 94, 60, 0.2) !important;
 }
 
 /* Custom scrollbars for a premium feel */
@@ -36,10 +162,54 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.2);
+  background: rgba(111, 78, 55, 0.15);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.4);
+  background: rgba(111, 78, 55, 0.35);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(139, 94, 60, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 94, 60, 0.45);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(232, 222, 210, 0.5) 25%, rgba(198, 162, 126, 0.3) 50%, rgba(232, 222, 210, 0.5) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+.dark .animate-shimmer {
+  background: linear-gradient(90deg, rgba(43, 43, 43, 0.6) 25%, rgba(59, 59, 59, 0.9) 50%, rgba(43, 43, 43, 0.6) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(252, 250, 247, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #E8DED2;
+}
+
+.dark .glass-panel {
+  background: rgba(24, 24, 24, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }

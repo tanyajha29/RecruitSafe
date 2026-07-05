@@ -81,18 +81,28 @@ def test_confidence_and_override():
     # Missing role name, company reference, contact info, salary info
     assert len(missing) >= 3
     
-    confidence = ConfidenceCalculator.calculate_confidence(short_text, None, None, False, missing)
+    confidence = ConfidenceCalculator.calculate_confidence(short_text, None, None, False, missing, 50)
     assert confidence < 40
 
-    # Risk Scorer overrides
-    trust, scam, cat, agreement = RiskScorer.calculate_risk(
+    # Risk Scorer rebalanced calculations
+    trust, scam, cat, agreement, explanation = RiskScorer.calculate_risk(
         evidence_list=[],
         positive_findings=[],
         ai_classification={"overall_risk": "Safe"},
-        confidence_score=confidence,
-        missing_info=missing
+        is_verified_employer=False
     )
-    assert cat == "Review Required"
+    # Clamp to 94 because employer footprint is unverified
+    assert trust == 94
+    assert cat == "Safe"
+
+    # Low agreement score override check
+    trust_low, scam_low, cat_low, agreement_low, explanation_low = RiskScorer.calculate_risk(
+        evidence_list=[],
+        positive_findings=[],
+        ai_classification={"overall_risk": "High Risk"},  # Forces agreement to be 10% (< 60%)
+        is_verified_employer=False
+    )
+    assert cat_low == "Manual Review Recommended"
 
 def test_dynamic_recommendations():
     evidence = [
@@ -100,6 +110,6 @@ def test_dynamic_recommendations():
         {"id": "upfront_otp_request", "score": -30, "category": "identity_theft"}
     ]
     positives = []
-    recs = RecommendationEngine.generate_recommendations(evidence, positives)
-    assert any("registration" in r.lower() for r in recs)
+    recs = RecommendationEngine.generate_recommendations(evidence, positives, {})
+    assert any("fee" in r.lower() for r in recs)
     assert any("otp" in r.lower() for r in recs)

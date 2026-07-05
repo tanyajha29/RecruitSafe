@@ -12,33 +12,26 @@ from app.models.analysis import Analysis
 logger = logging.getLogger("recruitsafe")
 
 def get_risk_color(category: str) -> colors.Color:
-    """
-    Returns the theme color corresponding to the risk category.
-    """
     cat = category.lower() if category else ""
     if "high" in cat:
         return colors.HexColor("#EF4444")  # Red
     elif "suspicious" in cat:
         return colors.HexColor("#F97316")  # Orange
     elif "manual" in cat or "review" in cat:
-        return colors.HexColor("#3B82F6")  # Blue for Manual Review Recommended
+        return colors.HexColor("#3B82F6")  # Blue
     elif "verification" in cat:
         return colors.HexColor("#EAB308")  # Yellow
     else:
         return colors.HexColor("#10B981")  # Green
 
 def format_status_cell(label: str, state: str, body_style: ParagraphStyle) -> List[Paragraph]:
-    """
-    Color codes the verification state for the status panel.
-    """
     state_upper = state.upper()
     
-    # Color mappings
-    if state_upper in ["VERIFIED", "VALID", "REACHABLE", "VALID HTTPS"]:
+    if state_upper in ["VERIFIED", "VALID", "REACHABLE", "VALID HTTPS", "FOUND"]:
         color = "#10B981"  # Green
-    elif state_upper in ["PARTIALLY VERIFIED"]:
+    elif state_upper in ["PARTIALLY VERIFIED", "DETECTED BUT NOT VERIFIED", "VERIFICATION PENDING"]:
         color = "#EAB308"  # Yellow
-    elif state_upper in ["INVALID", "UNREACHABLE", "NOT FOUND"]:
+    elif state_upper in ["INVALID", "UNREACHABLE", "NOT FOUND", "DISPOSABLE EMAIL"]:
         color = "#EF4444"  # Red
     else:
         color = "#64748B"  # Gray for Unknown
@@ -49,12 +42,8 @@ def format_status_cell(label: str, state: str, body_style: ParagraphStyle) -> Li
     ]
 
 def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
-    """
-    Generates an upgraded, professional, explainable PDF report for a job analysis scan.
-    """
-    logger.info(f"Generating V2.1 PDF report for analysis {analysis.id} at: {output_path}")
+    logger.info(f"Generating V2.2 PDF report for analysis {analysis.id} at: {output_path}")
     
-    # 1. Page template setup
     doc = SimpleDocTemplate(
         output_path,
         pagesize=letter,
@@ -64,16 +53,13 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         bottomMargin=40
     )
     
-    # Styles
     styles = getSampleStyleSheet()
     
-    # Custom Palette styling
     primary_color = colors.HexColor("#4F46E5")   # Indigo
     dark_text = colors.HexColor("#1E293B")       # Dark Slate
     muted_text = colors.HexColor("#64748B")      # Muted Slate
     border_color = colors.HexColor("#E2E8F0")    # Border gray
     
-    # Custom Paragraph Styles
     title_style = ParagraphStyle(
         'DocTitle',
         parent=styles['Heading1'],
@@ -151,7 +137,7 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     # --- Header Banner ---
     story.append(Paragraph("RecruitSafe Cybersecurity Audit Assessment", title_style))
     created_str = analysis.created_at.strftime("%B %d, %Y at %H:%M UTC")
-    story.append(Paragraph(f"REPORT ID: {analysis.id}  |  VERIFIED PORTAL V2.1  |  GENERATED: {created_str}", subtitle_style))
+    story.append(Paragraph(f"REPORT ID: {analysis.id}  |  VERIFIED PORTAL V2.2  |  GENERATED: {created_str}", subtitle_style))
     story.append(Spacer(1, 4))
     
     # --- Dual Score Cards ---
@@ -218,6 +204,49 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         agreement_text = f"Consensus score evaluated at {agreement}%. Rule engine and AI classification are in alignment."
     story.append(Paragraph(agreement_text, body_style))
 
+    # --- Hiring Workflow Intelligence (NEW) ---
+    workflow = getattr(analysis, "hiring_workflow", None) or {}
+    if workflow:
+        story.append(Paragraph("Hiring Workflow Intelligence", section_heading))
+        wf_type = workflow.get("type", "Good")
+        wf_score = workflow.get("score", 100)
+        wf_diagram = workflow.get("diagram", "Application")
+        wf_expl = workflow.get("explanation", "Legitimate pipeline")
+        wf_missing = ", ".join(workflow.get("missing_stages", [])) or "None"
+        
+        wf_color = "#10B981" if wf_type == "Good" else ("#EF4444" if wf_type == "Very Risky" else "#F97316")
+        
+        wf_data = [
+            [
+                Paragraph("<b>Workflow Score:</b>", body_style),
+                Paragraph(f"<b>{wf_score}/100</b>", body_style),
+                Paragraph("<b>Sequence Type:</b>", body_style),
+                Paragraph(f"<font color='{wf_color}'><b>{wf_type}</b></font>", body_style)
+            ],
+            [
+                Paragraph("<b>Workflow Diagram:</b>", body_style),
+                Paragraph(f"<i>{wf_diagram}</i>", body_style),
+                Paragraph("<b>Missing Expected:</b>", body_style),
+                Paragraph(f"<font color='#EF4444'><b>{wf_missing}</b></font>", body_style)
+            ]
+        ]
+        wf_table = Table(wf_data, colWidths=[100, 160, 130, 140])
+        wf_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#FAFAFA")),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
+            ('BOX', (0,0), (-1,-1), 0.8, colors.HexColor("#CBD5E1")),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(wf_table)
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(f"<b>Workflow Details:</b> {wf_expl}", body_style))
+        story.append(Spacer(1, 8))
+
     # --- Verification Status Panel ---
     story.append(Paragraph("Verification Status Footprint Panel", section_heading))
     v_status = getattr(analysis, "verification_status", None) or {}
@@ -229,16 +258,15 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     p_ssl = v_status.get("SSL", "Unknown")
     p_linkedin = v_status.get("LinkedIn", "Not Found")
     p_priv = v_status.get("Privacy Policy", "Not Found")
-    p_terms = v_status.get("Terms & Conditions", "Not Found")
+    p_terms = v_status.get("Terms", "Not Found")
     p_contact = v_status.get("Contact Page", "Not Found")
     p_careers = v_status.get("Careers Page", "Not Found")
     
-    # Build 2-column key-value status table
     row1 = format_status_cell("Company Website", p_web, body_style) + format_status_cell("Corporate Email", p_email, body_style)
-    row2 = format_status_cell("WHOIS Registration", p_whois, body_style) + format_status_cell("DNS Resolution", p_dns, body_style)
-    row3 = format_status_cell("SSL Connection", p_ssl, body_style) + format_status_cell("LinkedIn Link", p_linkedin, body_style)
-    row4 = format_status_cell("Privacy Policy", p_priv, body_style) + format_status_cell("Terms & Conditions", p_terms, body_style)
-    row5 = format_status_cell("Contact Page", p_contact, body_style) + format_status_cell("Careers Page", p_careers, body_style)
+    row2 = format_status_cell("WHOIS Registry Check", p_whois, body_style) + format_status_cell("DNS Resolution", p_dns, body_style)
+    row3 = format_status_cell("SSL Connection Check", p_ssl, body_style) + format_status_cell("LinkedIn Profile", p_linkedin, body_style)
+    row4 = format_status_cell("Privacy Policy Page", p_priv, body_style) + format_status_cell("Terms Compliance", p_terms, body_style)
+    row5 = format_status_cell("Careers Page Link", p_careers, body_style) + [Paragraph("<b>Domain Age:</b>", body_style), Paragraph(f"<b>{v_status.get('Domain Age', 'Unknown')}</b>", body_style)]
     
     panel_data = [row1, row2, row3, row4, row5]
     panel_table = Table(panel_data, colWidths=[130, 130, 140, 130])
@@ -404,6 +432,5 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     # --- Footer Disclaimer ---
     story.append(Paragraph("<i>Disclaimer: RecruitSafe provides algorithmic and AI-based cybersecurity analysis based on user-supplied parameters. It does not certify legal contracts or provide formal legal advice. Please verify corporate recruiters via official channels.</i>", subtitle_style))
 
-    # Build document
     doc.build(story)
     logger.info(f"PDF report successfully created for analysis {analysis.id}")

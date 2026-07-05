@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Import Pages
 import LandingPage from './pages/LandingPage';
@@ -20,7 +21,8 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
       <Router>
         <Routes>
           {/* Public Routes */}
@@ -85,6 +87,7 @@ function App() {
         </Routes>
       </Router>
     </AuthProvider>
+  </ThemeProvider>
   );
 }
 

@@ -85,7 +85,7 @@ const FileUploader = ({ allowedType, maxSizeBytes, onFileSelected, selectedFile,
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-600 border border-red-100"
+          className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/20 p-3 text-xs font-semibold text-red-650 dark:text-red-405 border border-red-100 dark:border-red-900/40"
         >
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
@@ -112,21 +112,21 @@ const FileUploader = ({ allowedType, maxSizeBytes, onFileSelected, selectedFile,
             onDragLeave={handleDrag}
             onDrop={handleDrop}
             onClick={triggerFileInput}
-            className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
+            className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
               dragActive 
-                ? 'border-brand-500 bg-brand-500/5' 
-                : 'border-slate-200 hover:border-slate-350 hover:bg-slate-50/50'
+                ? 'border-indigo-500 bg-indigo-500/5' 
+                : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/30'
             }`}
           >
-            <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400">
+            <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500">
               <Upload className="h-6 w-6 stroke-[1.75]" />
             </div>
             
             <div className="text-center">
-              <p className="text-sm font-bold text-slate-700">
-                Drag & drop a file here or <span className="text-brand-600 hover:text-brand-500 transition-colors">browse files</span>
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                Drag & drop a file here or <span className="text-indigo-600 dark:text-indigo-400 hover:underline transition-colors">browse files</span>
               </p>
-              <p className="text-xs text-slate-400 mt-1 font-medium">{getFormatHelpText()}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 font-medium">{getFormatHelpText()}</p>
             </div>
           </motion.div>
         ) : (
@@ -135,10 +135,10 @@ const FileUploader = ({ allowedType, maxSizeBytes, onFileSelected, selectedFile,
             initial={{ scale: 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.98, opacity: 0 }}
-            className="flex items-center justify-between rounded-xl border border-slate-200 p-4 bg-slate-50/50"
+            className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-850/40"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-brand-50 text-brand-500 border border-brand-100 shrink-0">
+              <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 shrink-0">
                 {allowedType === 'pdf' ? (
                   <FileText className="h-5 w-5" />
                 ) : (
@@ -146,8 +146,8 @@ const FileUploader = ({ allowedType, maxSizeBytes, onFileSelected, selectedFile,
                 )}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-700 truncate">{selectedFile.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5 font-semibold uppercase tracking-wider">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate">{selectedFile.name}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 font-semibold uppercase tracking-wider">
                   {formatFileSize(selectedFile.size)}
                 </p>
               </div>
@@ -159,7 +159,7 @@ const FileUploader = ({ allowedType, maxSizeBytes, onFileSelected, selectedFile,
                 e.stopPropagation();
                 onClearFile();
               }}
-              className="h-8 w-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              className="h-8 w-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>

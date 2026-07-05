@@ -46,6 +46,10 @@ class AIFactory:
                 cls._instances[provider_name] = MockProvider()
         return cls._instances[provider_name]
 
+import hashlib
+from datetime import datetime, timezone, timedelta
+from app.models.cache import CacheEntry
+
 class AIProxy(AIService):
     """
     Proxy wrapper that forwards all AI request invocations to the configured AI provider.
@@ -61,8 +65,43 @@ class AIProxy(AIService):
         return await provider.generate_job_summary(text)
 
     async def analyze_job(self, text: str, evidence: List[Dict[str, Any]]) -> Dict[str, Any]:
+        # 1. Normalize input text and evidence list for deterministic cache hashing
+        normalized_str = "".join(text.lower().split())
+        evidence_keys = sorted([str(ev.get("id", "")) for ev in evidence])
+        hash_input = f"{normalized_str}:{','.join(evidence_keys)}"
+        
+        md5_hash = hashlib.md5(hash_input.encode('utf-8')).hexdigest()
+        cache_key = f"ai_analysis:{md5_hash}"
+        
+        try:
+            cached = await CacheEntry.find_one({"key": cache_key})
+            if cached and cached.expires_at.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc):
+                logger.info(f"AI response cache HIT for key: {cache_key}")
+                return cached.value
+        except Exception as e:
+            logger.warning(f"Cache check failed in AIProxy: {e}")
+
         provider = AIFactory.get_provider()
-        return await provider.analyze_job(text, evidence)
+        result = await provider.analyze_job(text, evidence)
+
+        # 2. Store in cache for 24 hours
+        try:
+            await CacheEntry.find_one({"key": cache_key}).upsert(
+                {"$set": {
+                    "value": result,
+                    "expires_at": datetime.utcnow() + timedelta(hours=24)
+                }},
+                on_insert=CacheEntry(
+                    key=cache_key,
+                    value=result,
+                    expires_at=datetime.utcnow() + timedelta(hours=24)
+                )
+            )
+            logger.info(f"AI response cached successfully under key: {cache_key}")
+        except Exception as e:
+            logger.warning(f"Cache save failed in AIProxy: {e}")
+
+        return result
 
 # Export a single global proxy instance that other services can import directly
 ai_service = AIProxy()

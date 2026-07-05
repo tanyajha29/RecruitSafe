@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from beanie import Document, PydanticObjectId
 from pydantic import Field
 from pymongo import IndexModel, ASCENDING, DESCENDING
@@ -29,6 +29,11 @@ class Analysis(Document):
     verification_status: Optional[Dict[str, str]] = None
     agreement_explanation: Optional[str] = None
     decision_trace: List[str] = Field(default_factory=list)
+
+    # Version 2.2 Upgraded Metrics
+    email_detected: Optional[bool] = None
+    email_type: Optional[str] = None
+    hiring_workflow: Optional[Dict[str, Any]] = None
 
     # AI Content
     ai_summary: Optional[str] = None
