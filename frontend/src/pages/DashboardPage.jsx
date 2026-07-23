@@ -1,29 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Layout from '../components/common/Layout';
+import { useAuth } from '../context/AuthContext';
+import { Card, PrimaryButton, ScoreRing, Badge } from '../components/common/Primitives';
 import { 
   FileText, 
   ShieldAlert, 
-  Shield, 
-  Plus, 
-  AlertTriangle,
+  ShieldCheck, 
+  AlertTriangle, 
   ArrowRight,
-  RefreshCw,
-  Clock,
-  Sparkles,
-  Zap,
   TrendingUp,
-  Activity
+  Globe
 } from 'lucide-react';
 
 const DashboardPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -43,359 +39,279 @@ const DashboardPage = () => {
     fetchDashboardData();
   }, []);
 
-  const getRiskBadgeStyles = (category) => {
+  const calculateSafetyScore = () => {
+    if (!stats || stats.total_analyses === 0) return 85;
+    const safeW = (stats.safe_count || 0) * 98;
+    const reviewW = (stats.needs_verification_count || 0) * 75;
+    const suspW = (stats.suspicious_count || 0) * 35;
+    const highW = (stats.high_risk_count || 0) * 10;
+    const sum = safeW + reviewW + suspW + highW;
+    return Math.round(sum / stats.total_analyses);
+  };
+
+  const getEntityTitle = (item) => {
+    if (!item.original_content) return 'Verification Outreach';
+    return item.original_content.split('\n')?.[0]?.replace('Company: ', '') || 'Company Outreach';
+  };
+
+  const getSubtext = (item) => {
+    const timeStr = new Date(item.created_at).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric'
+    });
+    if (item.risk_category === 'Safe') {
+      return `Verified Outreach • ${timeStr}`;
+    } else if (item.risk_category === 'Needs Verification' || item.risk_category === 'Needs Review') {
+      return `Needs Audit • ${timeStr}`;
+    }
+    return `Suspected Phishing • ${timeStr}`;
+  };
+
+  const getClassificationBadge = (category) => {
     switch (category) {
       case 'Safe':
-        return 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50';
+        return <Badge variant="success">Verified</Badge>;
       case 'Needs Verification':
-        return 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/50';
-      case 'Suspicious':
-        return 'bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-900/50';
-      case 'High Risk':
-        return 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/50';
+      case 'Needs Review':
+        return <Badge variant="warning">Needs review</Badge>;
       default:
-        return 'bg-slate-50 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800/50';
+        return <Badge variant="danger">Suspicious</Badge>;
     }
   };
 
-  // Compile trend data from recent analyses
-  const getTrendData = () => {
-    if (!stats || !stats.recent_analyses || stats.recent_analyses.length === 0) {
-      return [
-        { name: 'Jan', score: 90 },
-        { name: 'Feb', score: 85 },
-        { name: 'Mar', score: 92 },
-        { name: 'Apr', score: 88 },
-      ];
-    }
+  const safetyScore = calculateSafetyScore();
 
-    const items = [...stats.recent_analyses].reverse();
-    return items.map((item, idx) => {
-      const dateStr = new Date(item.created_at).toLocaleDateString(undefined, { 
-        month: 'short', 
-        day: 'numeric' 
-      });
-      return {
-        name: dateStr,
-        score: item.trust_score !== null ? item.trust_score : 70,
-      };
-    });
-  };
-
-  // Compile donut/pie data
-  const getPieData = () => {
-    if (!stats) return [];
-    return [
-      { name: 'Safe', value: stats.safe_count, color: '#2E7D32' },
-      { name: 'Verification', value: stats.needs_verification_count, color: '#C6A27E' },
-      { name: 'Suspicious', value: stats.suspicious_count, color: '#8B5E3C' },
-      { name: 'High Risk', value: stats.high_risk_count, color: '#C53030' }
-    ].filter(item => item.value > 0);
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.08 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } }
-  };
+  if (loading) {
+    return (
+      <Layout>
+        <div className="space-y-8 max-w-[1280px] mx-auto py-12 animate-pulse select-none">
+          <div className="h-16 bg-card rounded-xl w-1/3 border border-border"></div>
+          <div className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 md:col-span-7 h-64 bg-card rounded-xl border border-border"></div>
+            <div className="col-span-12 md:col-span-5 h-64 bg-card rounded-xl border border-border"></div>
+            <div className="col-span-12 h-80 bg-card rounded-xl border border-border"></div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
-      <AnimatePresence mode="wait">
-        {loading ? (
-          <motion.div 
-            key="skeleton"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-8"
-          >
-            {/* Banner Skeleton */}
-            <div className="h-44 w-full rounded-2xl animate-shimmer"></div>
-            {/* Stats Grid Skeleton */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 rounded-xl animate-shimmer"></div>
-              ))}
+      <div className="space-y-8 select-none max-w-[1280px] mx-auto">
+        
+        {/* Welcome Section */}
+        <section className="text-left animate-in fade-in duration-500">
+          <h1 className="font-sans text-2xl font-bold text-text-primary tracking-tight">
+            Welcome back, {user?.full_name?.split(' ')?.[0] || 'Alex'}.
+          </h1>
+          <p className="text-text-secondary text-sm">
+            Your security ecosystem is stable. {stats?.high_risk_count > 0 ? `${stats.high_risk_count} threat signals require inspection.` : 'No urgent threats detected.'}
+          </p>
+        </section>
+
+        {/* Bento Grid Content */}
+        <div className="grid grid-cols-12 gap-6">
+          
+          {/* Quick Action Card */}
+          <Card className="col-span-12 md:col-span-7 flex flex-col justify-between text-left">
+            <div className="space-y-3">
+              <span className="font-mono text-[10px] font-bold text-text-secondary uppercase tracking-widest block">
+                Immediate Actions
+              </span>
+              <h2 className="font-sans text-xl font-bold text-text-primary tracking-tight">
+                Threat Intelligence & Recruiter Analysis
+              </h2>
+              <p className="text-text-secondary text-sm leading-relaxed max-w-md">
+                Verify unsolicited outreach from potential recruiters using our neural fraud detection engine.
+              </p>
             </div>
-            {/* Content Split Skeleton */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 h-80 rounded-2xl animate-shimmer"></div>
-              <div className="lg:col-span-4 h-80 rounded-2xl animate-shimmer"></div>
+            
+            <div className="pt-8">
+              <PrimaryButton 
+                onClick={() => navigate('/analysis/new')}
+                className="w-full md:w-auto"
+              >
+                <span>Start New Analysis</span>
+                <ArrowRight className="h-4 w-4" />
+              </PrimaryButton>
             </div>
-          </motion.div>
-        ) : error ? (
-          <motion.div 
-            key="error"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex h-96 w-full flex-col items-center justify-center gap-4 text-center"
-          >
-            <AlertTriangle className="h-12 w-12 text-red-500" />
-            <p className="text-slate-655 dark:text-slate-400 font-medium">{error}</p>
-            <button
-              onClick={fetchDashboardData}
-              className="flex items-center gap-2 rounded-xl bg-indigo-650 hover:bg-indigo-700 text-white px-5 py-2.5 text-sm font-bold shadow-md shadow-indigo-600/10 transition-colors cursor-pointer"
-            >
-              <RefreshCw className="h-4 w-4 animate-spin-slow" />
-              <span>Try Again</span>
-            </button>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="dashboard"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="space-y-8"
-          >
-            {/* Welcome Banner Card */}
-            <motion.div 
-              variants={itemVariants}
-              className="rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-750 to-violet-700 p-8 text-white shadow-xl shadow-indigo-600/10 flex flex-col lg:flex-row items-center justify-between gap-6 relative overflow-hidden"
-            >
-              <div className="absolute right-0 bottom-0 h-48 w-48 rounded-full bg-white/5 blur-3xl pointer-events-none"></div>
-              <div className="absolute left-1/3 top-0 h-32 w-32 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none"></div>
-              
-              <div className="space-y-2.5 text-center lg:text-left relative z-10">
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-100 backdrop-blur-md">
-                  <Sparkles className="h-3 w-3 text-indigo-300" />
-                  <span>Next-Gen Scam Analysis v2.1</span>
-                </div>
-                <h2 className="text-2xl lg:text-3xl font-extrabold tracking-tight">Secure Your Job Search</h2>
-                <p className="text-sm text-indigo-100 max-w-xl leading-relaxed">
-                  Analyze description files, recruiter email domains, and company websites to expose fraud, identity theft, or payment traps in real time.
-                </p>
-              </div>
-              
-              <motion.div
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="shrink-0 z-10"
+          </Card>
+
+          {/* Safety Score Card */}
+          <Card className="col-span-12 md:col-span-5 flex flex-col items-center justify-center text-center">
+            <span className="font-mono text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-6 block">
+              Personal Safety Score
+            </span>
+            <ScoreRing 
+              score={safetyScore} 
+              label={safetyScore >= 80 ? 'SAFE' : safetyScore >= 50 ? 'CAUTION' : 'AT RISK'} 
+            />
+            <div className="mt-6 inline-flex items-center gap-2 px-3 py-1 bg-brand-light rounded-full border border-brand/20">
+              <ShieldCheck className="h-4 w-4 text-brand" />
+              <span className="font-mono text-[11px] font-bold text-brand uppercase tracking-wider">
+                Optimal Protection Active
+              </span>
+            </div>
+          </Card>
+
+          {/* Stats quick overview cards */}
+          <Card className="col-span-6 md:col-span-3 text-left flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-bg border border-border flex items-center justify-center text-text-secondary">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-text-primary">{stats?.total_analyses}</p>
+              <p className="text-[10px] text-text-secondary font-mono font-bold uppercase tracking-wider mt-0.5">Total Checks</p>
+            </div>
+          </Card>
+
+          <Card className="col-span-6 md:col-span-3 text-left flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-danger/5 border border-danger/20 flex items-center justify-center text-danger">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-danger">{stats?.high_risk_count}</p>
+              <p className="text-[10px] text-text-secondary font-mono font-bold uppercase tracking-wider mt-0.5">High Risk</p>
+            </div>
+          </Card>
+
+          <Card className="col-span-6 md:col-span-3 text-left flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-warning/5 border border-warning/20 flex items-center justify-center text-warning">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-warning">{stats?.suspicious_count}</p>
+              <p className="text-[10px] text-text-secondary font-mono font-bold uppercase tracking-wider mt-0.5">Suspicious</p>
+            </div>
+          </Card>
+
+          <Card className="col-span-6 md:col-span-3 text-left flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-success/5 border border-success/20 flex items-center justify-center text-success">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-success">{stats?.safe_count}</p>
+              <p className="text-[10px] text-text-secondary font-mono font-bold uppercase tracking-wider mt-0.5">Safe Outreach</p>
+            </div>
+          </Card>
+
+          {/* Recent Verifications Table */}
+          <Card className="col-span-12 p-0 overflow-hidden text-left">
+            <div className="px-8 py-6 border-b border-border flex justify-between items-center bg-card">
+              <h3 className="font-mono text-[11px] font-bold text-text-secondary uppercase tracking-widest">
+                Recent Verifications
+              </h3>
+              <button 
+                onClick={() => navigate('/history')}
+                className="text-brand font-mono text-[11px] font-bold hover:underline cursor-pointer"
               >
-                <Link
-                  to="/analysis/new"
-                  className="flex items-center gap-2 rounded-xl bg-white text-indigo-600 px-6 py-3.5 text-xs font-black shadow-lg shadow-indigo-900/10 hover:shadow-indigo-900/20 transition-all cursor-pointer"
-                >
-                  <Plus className="h-4 w-4 stroke-[3]" />
-                  <span>START NEW CHECK</span>
-                </Link>
-              </motion.div>
-            </motion.div>
-
-            {/* Statistics Row */}
-            <motion.div 
-              variants={itemVariants}
-              className="grid grid-cols-2 lg:grid-cols-4 gap-6"
-            >
-              <motion.div 
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-4 transition-colors duration-300"
-              >
-                <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-800/40 text-slate-500 border border-slate-100 dark:border-slate-800/50">
-                  <FileText className="h-5 w-5" />
+                VIEW ALL HISTORY
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              {stats?.recent_analyses?.length === 0 ? (
+                <div className="py-16 text-center border-t border-border bg-card">
+                  <p className="text-text-secondary text-sm font-semibold">No recent scans found.</p>
+                  <button 
+                    onClick={() => navigate('/analysis/new')}
+                    className="text-brand text-xs font-bold font-mono mt-2 underline cursor-pointer"
+                  >
+                    Perform your first recruiter scan
+                  </button>
                 </div>
-                <div>
-                  <p className="text-2xl font-black text-slate-850 dark:text-slate-100">{stats?.total_analyses}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">Total Checks</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-4 transition-colors duration-300"
-              >
-                <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/20 text-red-500 border border-red-100 dark:border-red-900/40">
-                  <ShieldAlert className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-slate-850 dark:text-slate-100">{stats?.high_risk_count}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">High Risk</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-4 transition-colors duration-300"
-              >
-                <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/20 text-orange-500 border border-orange-100 dark:border-orange-900/40">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-slate-850 dark:text-slate-100">{stats?.suspicious_count}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">Suspicious</p>
-                </div>
-              </motion.div>
-
-              <motion.div 
-                whileHover={{ y: -6, transition: { duration: 0.2 } }}
-                className="rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200/80 dark:border-slate-800/80 flex items-center gap-4 transition-colors duration-300"
-              >
-                <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-500 border border-emerald-100 dark:border-emerald-900/40">
-                  <Shield className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black text-slate-850 dark:text-slate-100">{stats?.safe_count}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">Safe Jobs</p>
-                </div>
-              </motion.div>
-            </motion.div>
-
-            {/* Content & Charts Split Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
-              
-              {/* Left Side: Recent Checks list & Trend Analysis */}
-              <div className="xl:col-span-8 space-y-8">
-                
-
-
-                {/* Table: Recent Checks */}
-                <motion.div 
-                  variants={itemVariants}
-                  className="rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-indigo-650 dark:text-indigo-400" />
-                      <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Recent Analyses</h3>
-                    </div>
-                    <Link to="/history" className="text-xs font-bold text-indigo-600 dark:text-indigo-455 hover:underline flex items-center gap-1">
-                      <span>View History</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Link>
-                  </div>
-
-                  {stats?.recent_analyses.length === 0 ? (
-                    <div className="py-12 text-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                      <p className="text-slate-400 dark:text-slate-500 text-sm font-medium">No job scam checks performed yet.</p>
-                      <Link
-                        to="/analysis/new"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-2 hover:underline"
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-bg border-b border-border select-none">
+                      <th className="px-8 py-4 font-mono text-[10px] font-bold text-text-secondary uppercase tracking-wider">Entity</th>
+                      <th className="px-8 py-4 font-mono text-[10px] font-bold text-text-secondary uppercase tracking-wider">Classification</th>
+                      <th className="px-8 py-4 font-mono text-[10px] font-bold text-text-secondary uppercase tracking-wider text-right">Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {stats?.recent_analyses?.slice(0, 3).map((item) => (
+                      <tr 
+                        key={item.id}
+                        onClick={() => navigate(`/analysis/${item.id}`)}
+                        className="hover:bg-bg/50 transition-colors group cursor-pointer"
                       >
-                        <span>Analyze your first job now</span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-bold text-xs uppercase tracking-wider">
-                            <th className="pb-3 pl-2">Job Preview</th>
-                            <th className="pb-3">Type</th>
-                            <th className="pb-3">Risk Level</th>
-                            <th className="pb-3">Score</th>
-                            <th className="pb-3 pr-2">Date Checked</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stats?.recent_analyses.map((item) => (
-                            <tr 
-                              key={item.id} 
-                              onClick={() => navigate(`/analysis/${item.id}`)}
-                              className="border-b border-slate-50 dark:border-slate-850 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                            >
-                              <td className="py-4 pl-2 font-bold text-xs text-slate-700 dark:text-slate-205 max-w-[200px] truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                                {item.original_content || 'Extracted File Text'}
-                              </td>
-                              <td className="py-4 text-xs font-semibold text-slate-400 dark:text-slate-500 capitalize">
-                                {item.input_type}
-                              </td>
-                              <td className="py-4">
-                                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${getRiskBadgeStyles(item.risk_category)}`}>
-                                  {item.risk_category}
-                                </span>
-                              </td>
-                              <td className="py-4 font-bold text-xs text-slate-700 dark:text-slate-200">
-                                {item.trust_score !== null ? `${item.trust_score}/100` : '—'}
-                              </td>
-                              <td className="py-4 pr-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
-                                {new Date(item.created_at).toLocaleDateString(undefined, {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                })}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-
-              {/* Right Side: Circular Donut Chart Card */}
-              <motion.div 
-                variants={itemVariants}
-                className="xl:col-span-4 rounded-2xl bg-white dark:bg-slate-900 p-6 shadow-sm border border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300"
-              >
-                <h3 className="text-base font-bold text-slate-850 dark:text-slate-100 mb-6 text-center">Risk Distribution</h3>
-                
-                {stats?.total_analyses === 0 ? (
-                  <div className="h-48 flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
-                    <p className="text-slate-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider">No Checks Yet</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="h-48 w-full relative flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={getPieData()}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={55}
-                            outerRadius={75}
-                            paddingAngle={4}
-                            dataKey="value"
-                          >
-                            {getPieData().map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute text-center">
-                        <p className="text-3xl font-black text-slate-800 dark:text-white leading-none">{stats?.total_analyses}</p>
-                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-wider mt-1.5">Total Checks</p>
-                      </div>
-                    </div>
-
-                    {/* Slices legend listing */}
-                    <div className="w-full mt-6 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-4">
-                      {Object.keys(stats?.risk_distribution || {}).map((key) => {
-                        let color = '#E2E8F0';
-                        if (key === 'Safe') color = '#2E7D32';
-                        if (key === 'Needs Verification') color = '#C6A27E';
-                        if (key === 'Suspicious') color = '#8B5E3C';
-                        if (key === 'High Risk') color = '#C53030';
-                        
-                        return (
-                          <div key={key} className="flex items-center justify-between text-xs font-semibold">
-                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-                              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }}></span>
-                              <span>{key}</span>
+                        <td className="px-8 py-5">
+                          <div className="flex items-center gap-4">
+                            <div className="w-9 h-9 flex items-center justify-center bg-bg border border-border rounded-lg shrink-0 text-text-secondary">
+                              <span className="material-symbols-outlined text-[20px]">
+                                {item.input_type === 'email' ? 'alternate_email' : item.input_type === 'url' ? 'globe' : 'work'}
+                              </span>
                             </div>
-                            <span className="text-slate-800 dark:text-slate-205">{stats.risk_distribution[key]}%</span>
+                            <div>
+                              <p className="font-sans text-sm font-semibold text-text-primary truncate max-w-xs group-hover:text-brand transition-colors">{getEntityTitle(item)}</p>
+                              <p className="font-mono text-[10px] text-text-secondary mt-0.5">{getSubtext(item)}</p>
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
+                        </td>
+                        <td className="px-8 py-5">
+                          {getClassificationBadge(item.risk_category)}
+                        </td>
+                        <td className="px-8 py-5 text-right font-mono text-xs text-text-secondary">
+                          {item.trust_score !== null ? `${item.trust_score}%` : '--%'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </Card>
+
+          {/* Network Insights */}
+          <Card className="col-span-12 md:col-span-6 text-left space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono text-[11px] font-bold text-text-secondary uppercase tracking-widest">
+                Global Network Health
+              </h3>
+              <Globe className="h-4.5 w-4.5 text-brand" />
+            </div>
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
+                  <span>Phishing Activity</span>
+                  <span className="text-brand">Low</span>
+                </div>
+                <div className="h-1 bg-bg border border-border overflow-hidden rounded-full">
+                  <div className="h-full bg-brand w-[20%]"></div>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between font-mono text-[10px] font-bold uppercase">
+                  <span>Identity Spoofing</span>
+                  <span className="text-brand">Moderate</span>
+                </div>
+                <div className="h-1 bg-bg border border-border overflow-hidden rounded-full">
+                  <div className="h-full bg-brand w-[45%]"></div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Security Tip */}
+          <Card className="col-span-12 md:col-span-6 bg-brand-light/30 border-brand/20 text-left flex gap-5">
+            <div className="flex-shrink-0 w-11 h-11 bg-brand text-white flex items-center justify-center rounded-lg">
+              <span className="material-symbols-outlined text-[20px]">lightbulb</span>
+            </div>
+            <div>
+              <h4 className="font-sans text-[15px] font-bold text-text-primary mb-1">Pro-Tip: Domain Check</h4>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                Recruiters from major firms will never contact you from personal Gmail or Outlook accounts. Always check the MX records of the sender's domain.
+              </p>
+            </div>
+          </Card>
+
+        </div>
+
+      </div>
     </Layout>
   );
 };

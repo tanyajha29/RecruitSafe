@@ -46,12 +46,37 @@ async def run_analysis_pipeline(analysis_id: str) -> None:
             # Standard Text Paste or URL
             scam_text = analysis.original_content or ""
 
+        # Phase 1 & Phase 2: Ingest and compile the structured evidence model
+        from app.services.structured_extractor import StructuredExtractor
+        from app.services.ai.ai_provider import ai_service
+        analysis.structured_evidence = StructuredExtractor.extract_all(scam_text, analysis.original_content)
+
+        missing_fields = [k for k, v in analysis.structured_evidence.items() if v["extraction_status"] == "not_found"]
+        if missing_fields and ai_service.enabled:
+            try:
+                ai_extracted = await ai_service.extract_missing_fields(scam_text, missing_fields)
+                for field, val in ai_extracted.items():
+                    if val and str(val).strip() != "" and str(val).strip().lower() not in ["unknown", "none", "not found"]:
+                        analysis.structured_evidence[field] = {
+                            "value": str(val).strip(),
+                            "source": "AI Fallback",
+                            "extraction_status": "extracted",
+                            "confidence": 80
+                        }
+            except Exception as e:
+                logger.error(f"Fallback AI information extraction failed: {e}")
+
+        # Validate structured evidence before scoring
+        from app.services.extraction_validator import ExtractionValidator
+        analysis.structured_evidence = ExtractionValidator.validate_all(analysis.structured_evidence)
+
         # 3. Delegate to modular PipelineOrchestrator
         orchestration_result = await PipelineOrchestrator.process_analysis(
             input_type=analysis.input_type,
             original_content=analysis.original_content or "",
             processed_text=scam_text,
-            ocr_performed=ocr_performed
+            ocr_performed=ocr_performed,
+            structured_evidence=analysis.structured_evidence
         )
 
         # 4. Save results to Beanie model
@@ -73,6 +98,7 @@ async def run_analysis_pipeline(analysis_id: str) -> None:
         analysis.email_data = orchestration_result["email_data"]
         analysis.hiring_workflow = orchestration_result["hiring_workflow"]
         analysis.decision_trace = orchestration_result["decision_trace"]
+        analysis.hybrid_verdict = orchestration_result.get("hybrid_verdict")
 
         # Parse detected email info if email_data is present
         if orchestration_result["email_data"]:

@@ -1,0 +1,25 @@
+{
+  "rule_weight": 0.40,
+  "verification_weight": 0.35,
+  "ml_weight": 0.25,
+  "verdict_boundaries": {
+    "safe": 20,
+    "suspicious": 50,
+    "high_risk": 75
+  },
+  "verification_deductions": {
+    "corp_email_invalid": 30,
+    "website_unreachable": 20,
+    "dns_unreachable": 15,
+    "ssl_invalid": 15,
+    "whois_not_found": 15,
+    "domain_age_unknown": 5,
+    "missing_signals": 5
+  },
+  "confidence_parameters": {
+    "completeness_coefficient": 0.7,
+    "agreement_boost": 15.0,
+    "min_confidence": 50.0,
+    "max_confidence": 100.0
+  }
+}

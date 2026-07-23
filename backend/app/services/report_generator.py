@@ -25,20 +25,24 @@ def get_risk_color(category: str) -> colors.Color:
         return colors.HexColor("#10B981")  # Green
 
 def format_status_cell(label: str, state: str, body_style: ParagraphStyle) -> List[Paragraph]:
-    state_upper = state.upper()
+    state_upper = str(state).upper()
     
-    if state_upper in ["VERIFIED", "VALID", "REACHABLE", "VALID HTTPS", "FOUND"]:
+    if state_upper in ["VERIFIED", "VALID", "REACHABLE", "VALID HTTPS", "FOUND", "AVAILABLE"]:
         color = "#10B981"  # Green
+        display_state = "✓ Verified"
     elif state_upper in ["PARTIALLY VERIFIED", "DETECTED BUT NOT VERIFIED", "VERIFICATION PENDING"]:
         color = "#EAB308"  # Yellow
-    elif state_upper in ["INVALID", "UNREACHABLE", "NOT FOUND", "DISPOSABLE EMAIL"]:
+        display_state = f"⚠ {state}"
+    elif state_upper in ["INVALID", "UNREACHABLE", "NOT FOUND", "DISPOSABLE EMAIL", "MISSING"]:
         color = "#EF4444"  # Red
+        display_state = "⚠ Missing"
     else:
         color = "#64748B"  # Gray for Unknown
+        display_state = "? Unknown"
         
     return [
         Paragraph(f"<b>{label}:</b>", body_style),
-        Paragraph(f"<font color='{color}'><b>{state}</b></font>", body_style)
+        Paragraph(f"<font color='{color}'><b>{display_state}</b></font>", body_style)
     ]
 
 def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
@@ -192,17 +196,161 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     story.append(meter_table)
     story.append(Spacer(1, 8))
     
-    # --- Executive AI Summary ---
-    story.append(Paragraph("Executive Summary", section_heading))
-    summary_text = analysis.ai_summary or "No summary generated."
-    story.append(Paragraph(summary_text, body_style))
-    
-    # --- AI-Rule Agreement Explanation ---
-    story.append(Paragraph("AI-Rule Agreement Details", section_heading))
-    agreement_text = getattr(analysis, "agreement_explanation", None)
-    if not agreement_text:
-        agreement_text = f"Consensus score evaluated at {agreement}%. Rule engine and AI classification are in alignment."
-    story.append(Paragraph(agreement_text, body_style))
+    # --- Hybrid Decision Summary & Breakdown (NEW V4) ---
+    hybrid = getattr(analysis, "hybrid_verdict", None)
+    if hybrid:
+        story.append(Paragraph("Hybrid Decision Summary", section_heading))
+        h_verdict = hybrid.get("final_verdict", analysis.risk_category or "Unknown")
+        h_risk = hybrid.get("final_risk_score", 0)
+        h_conf = hybrid.get("confidence", confidence)
+        
+        summary_text = (
+            f"RecruitSafe Hybrid Decision Intelligence has evaluated this job posting and issued a final trust verdict of "
+            f"<b>{h_verdict}</b> (Scam Probability Score: {h_risk}/100) with a classification confidence rating of {h_conf}%."
+        )
+        story.append(Paragraph(summary_text, body_style))
+        story.append(Spacer(1, 4))
+
+        # Pipeline Summary (Requirement 7)
+        story.append(Paragraph("Orchestration Pipeline Summary", section_heading))
+        pipeline_html = (
+            "<font size='9'><b>Canonical Extraction</b> &nbsp;➔&nbsp; "
+            "<b>Rule Engine</b> &nbsp;➔&nbsp; "
+            "<b>Verification Engine</b> &nbsp;➔&nbsp; "
+            "<b>Machine Learning</b> &nbsp;➔&nbsp; "
+            "<b>Decision Fusion</b> &nbsp;➔&nbsp; "
+            "<b>Final Verdict</b></font>"
+        )
+        story.append(Paragraph(pipeline_html, body_style))
+        story.append(Spacer(1, 4))
+        
+        # Decision Breakdown Table
+        breakdown = hybrid.get("decision_breakdown", {})
+        rule_info = breakdown.get("rule_engine", {"score": 0, "reasons": []})
+        verif_info = breakdown.get("verification", {"score": 0, "reasons": []})
+        ml_info = breakdown.get("machine_learning", {"probability": 0.0, "prediction": "Safe"})
+
+        # Positive Indicators mapping for SAFE verdicts (Requirement 6)
+        rule_reasons = rule_info.get("reasons", [])
+        if h_verdict == "SAFE" and not rule_reasons:
+            pos_obs = []
+            v_status = getattr(analysis, "verification_status", None) or {}
+            if v_status.get("Corporate Email") == "Verified":
+                pos_obs.append("Official corporate recruiter email verified")
+            if v_status.get("SSL") == "Valid":
+                pos_obs.append("HTTPS enabled")
+                pos_obs.append("Valid SSL certificate")
+            if v_status.get("DNS") == "Reachable":
+                pos_obs.append("DNS reachable")
+            
+            rule_ids_triggered = [item.get("id") for item in getattr(analysis, "evidence", [])]
+            if "registration_fee" not in rule_ids_triggered and "payment_required" not in rule_ids_triggered:
+                pos_obs.append("No payment requests detected")
+            if "urgency_urg" not in rule_ids_triggered and "limited_offer" not in rule_ids_triggered:
+                pos_obs.append("No urgency tactics detected")
+                
+            structured_evidence = getattr(analysis, "structured_evidence", {}) or {}
+            salary_val = structured_evidence.get("salary", {}).get("value")
+            if salary_val and str(salary_val).lower() not in ["unknown", "none", "not found"]:
+                pos_obs.append("Realistic salary range")
+                
+            hiring_steps_val = structured_evidence.get("hiring_steps", {}).get("value")
+            if hiring_steps_val and str(hiring_steps_val).lower() not in ["unknown", "none", "not found"]:
+                pos_obs.append("Structured hiring workflow detected")
+                if "interview" in str(hiring_steps_val).lower() or "," in str(hiring_steps_val):
+                    pos_obs.append("Multiple interview stages identified")
+            
+            rule_primary_text = ", ".join(pos_obs) if pos_obs else "No red flag rules triggered"
+        else:
+            rule_primary_text = ", ".join(rule_reasons) or "No red flag rules triggered"
+        
+        story.append(Paragraph("Decision Breakdown Metrics", section_heading))
+        
+        breakdown_data = [
+            [
+                Paragraph("<b>Decision Module</b>", table_header_style),
+                Paragraph("<b>Component Score / Prob</b>", table_header_style),
+                Paragraph("<b>Primary Fused Indicators</b>", table_header_style)
+            ],
+            [
+                Paragraph("Rule Engine Scam Index", table_cell_style),
+                Paragraph(f"{rule_info.get('score')}/100", table_cell_style),
+                Paragraph(rule_primary_text, table_cell_style)
+            ],
+            [
+                Paragraph("Verification Risk Score", table_cell_style),
+                Paragraph(f"{verif_info.get('score')}/100", table_cell_style),
+                Paragraph(", ".join(verif_info.get("reasons", [])) or "All infrastructure verified", table_cell_style)
+            ],
+            [
+                Paragraph("ML Content Scorer", table_cell_style),
+                Paragraph(f"{round(ml_info.get('probability', 0.0) * 100, 1)}%", table_cell_style),
+                Paragraph(f"XGBoost Classifier Verdict: {ml_info.get('prediction')}", table_cell_style)
+            ]
+        ]
+        
+        bd_table = Table(breakdown_data, colWidths=[150, 120, 260])
+        bd_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), primary_color),
+            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, border_color),
+            ('BOX', (0,0), (-1,-1), 0.8, primary_color),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(bd_table)
+        story.append(Spacer(1, 4))
+
+        # Fusion Calculation Section (Requirement 4)
+        story.append(Paragraph("Fusion Weight Calculation", section_heading))
+        weights = hybrid.get("weights") or {}
+        w_rule = int(weights.get("rule_weight", 0.40) * 100)
+        w_verif = int(weights.get("verification_weight", 0.35) * 100)
+        w_ml = int(weights.get("ml_weight", 0.25) * 100)
+        
+        fusion_html = (
+            f"The final composite score is calculated using dynamic weights loaded from config:<br/>"
+            f"• <b>Rule Engine</b> ({w_rule}%) Score: {rule_info.get('score')} / 100<br/>"
+            f"• <b>Infrastructure Verification</b> ({w_verif}%) Score: {verif_info.get('score')} / 100<br/>"
+            f"• <b>Machine Learning Text Scorer</b> ({w_ml}%) Score: {round(ml_info.get('probability', 0.0) * 100, 1)} / 100<br/>"
+            f"➔ <b>Combined Risk Calculation:</b> ({rule_info.get('score')} × {w_rule}%) + "
+            f"({verif_info.get('score')} × {w_verif}%) + "
+            f"({round(ml_info.get('probability', 0.0) * 100, 1)} × {w_ml}%) = <b>{h_risk} / 100</b>"
+        )
+        story.append(Paragraph(fusion_html, body_style))
+        story.append(Spacer(1, 4))
+
+        # Confidence Contributors Section (Requirement 5)
+        story.append(Paragraph("Confidence Contributors", section_heading))
+        contributors = hybrid.get("confidence_contributors") or {}
+        c_ext = contributors.get("extraction_completeness", 0.0)
+        c_agree = contributors.get("rule_agreement_boost", 0.0)
+        c_verif = contributors.get("verification_coverage", 0.0)
+        c_ml = contributors.get("ml_confidence", 0.0)
+        
+        conf_html = (
+            f"Classification confidence of <b>{h_conf}%</b> is computed dynamically based on evaluation coverage:<br/>"
+            f"• <b>Canonical Extraction Completeness:</b> {c_ext}%<br/>"
+            f"• <b>Rule Agreement Boost Applied:</b> {c_agree}%<br/>"
+            f"• <b>Infrastructure Verification Coverage:</b> {c_verif}%<br/>"
+            f"• <b>Machine Learning Certainty Score:</b> {c_ml}%"
+        )
+        story.append(Paragraph(conf_html, body_style))
+        story.append(Spacer(1, 6))
+    else:
+        # Fallback to old Executive Summary & Agreement
+        story.append(Paragraph("Executive Summary", section_heading))
+        summary_text = analysis.ai_summary or "No summary generated."
+        story.append(Paragraph(summary_text, body_style))
+        
+        story.append(Paragraph("AI-Rule Agreement Details", section_heading))
+        agreement_text = getattr(analysis, "agreement_explanation", None)
+        if not agreement_text:
+            agreement_text = f"Consensus score evaluated at {agreement}%. Rule engine and AI classification are in alignment."
+        story.append(Paragraph(agreement_text, body_style))
 
     # --- Hiring Workflow Intelligence (NEW) ---
     workflow = getattr(analysis, "hiring_workflow", None) or {}
@@ -246,6 +394,30 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         story.append(Spacer(1, 4))
         story.append(Paragraph(f"<b>Workflow Details:</b> {wf_expl}", body_style))
         story.append(Spacer(1, 8))
+
+    # --- Extraction Summary (Requirement 8) ---
+    story.append(Paragraph("Canonical Extraction Summary", section_heading))
+    structured_evidence = getattr(analysis, "structured_evidence", {}) or {}
+    extracted_count = 0
+    for key, entity in structured_evidence.items():
+        if isinstance(entity, dict):
+            val = entity.get("value")
+        else:
+            val = getattr(entity, "value", None)
+        if val is not None:
+            val_str = str(val).strip()
+            if val_str and val_str not in ["Unknown", "Unknown Value", "not_found", "not found", "None"]:
+                extracted_count += 1
+    total_supported = 31
+    completeness_pct = round((extracted_count / total_supported) * 100, 1)
+    
+    ext_html = (
+        f"• <b>Canonical Entities Supported:</b> {total_supported}<br/>"
+        f"• <b>Canonical Entities Extracted:</b> {extracted_count}<br/>"
+        f"• <b>Extraction Completeness:</b> {completeness_pct}%"
+    )
+    story.append(Paragraph(ext_html, body_style))
+    story.append(Spacer(1, 6))
 
     # --- Verification Status Panel ---
     story.append(Paragraph("Verification Status Footprint Panel", section_heading))

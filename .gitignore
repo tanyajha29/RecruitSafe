@@ -36,3 +36,8 @@ Thumbs.db
 .kiro/
 **/.kiro/
 .kiro*
+
+# Temporary Reports and Outputs
+backend/reports/
+*.pdf
+.pytest_cache/

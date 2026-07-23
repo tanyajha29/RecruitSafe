@@ -66,8 +66,8 @@ class Evidence(BaseModel):
 class WebsiteData(BaseModel):
     url: str
     domain_age_days: Optional[int] = None
-    has_valid_ssl: bool
-    has_redirects: bool
+    has_valid_ssl: Optional[bool] = False
+    has_redirects: Optional[bool] = False
     page_title: Optional[str] = None
     meta_description: Optional[str] = None
 
@@ -87,11 +87,11 @@ class WebsiteData(BaseModel):
 class EmailData(BaseModel):
     sender_email: str
     domain: str
-    is_disposable: bool
-    is_free_email: bool
-    urgency_detected: bool
-    payment_request_detected: bool
-    credential_request_detected: bool
+    is_disposable: Optional[bool] = False
+    is_free_email: Optional[bool] = False
+    urgency_detected: Optional[bool] = False
+    payment_request_detected: Optional[bool] = False
+    credential_request_detected: Optional[bool] = False
 
 class AnalysisResponse(BaseModel):
     id: str
@@ -126,7 +126,9 @@ class AnalysisResponse(BaseModel):
     recommendations: List[str] = Field(default_factory=list)
     evidence: List[Evidence] = Field(default_factory=list)
     website_data: Optional[WebsiteData] = None
+    structured_evidence: Optional[Dict[str, Any]] = None
     email_data: Optional[EmailData] = None
+    hybrid_verdict: Optional[Dict[str, Any]] = None
     pdf_url: Optional[str] = None
     created_at: datetime
     processing_time_ms: Optional[int] = None

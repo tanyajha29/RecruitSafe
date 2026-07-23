@@ -1,0 +1,7 @@
+{
+  "NONE": 0,
+  "LOW": 5,
+  "MEDIUM": 20,
+  "HIGH": 40,
+  "CRITICAL": 60
+}

@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Plus, Sun, Moon } from 'lucide-react';
+import { PrimaryButton } from './Primitives';
 
 const Header = () => {
   const { user } = useAuth();
@@ -24,12 +25,12 @@ const Header = () => {
   };
 
   return (
-    <header className="h-20 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between px-8 relative z-10 shrink-0 transition-colors duration-300">
+    <header className="h-20 bg-card border-b border-border flex items-center justify-between px-8 relative z-10 shrink-0 transition-colors duration-300">
       {/* Title */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">{getPageTitle()}</h1>
-        <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-0.5">
-          Welcome back, <span className="font-semibold text-slate-600 dark:text-slate-300">{user?.full_name || 'User'}</span>
+      <div className="text-left">
+        <h1 className="text-xl font-bold text-text-primary">{getPageTitle()}</h1>
+        <p className="text-xs text-text-secondary font-medium mt-0.5">
+          Welcome back, <span className="font-semibold text-text-primary">{user?.full_name || 'User'}</span>
         </p>
       </div>
 
@@ -37,28 +38,21 @@ const Header = () => {
       <div className="flex items-center gap-4">
         {/* Quick New Analysis Button */}
         {location.pathname !== '/analysis/new' && (
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <PrimaryButton
+            onClick={() => navigate('/analysis/new')}
+            className="text-xs px-3.5 py-2"
           >
-            <Link
-              to="/analysis/new"
-              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2 shadow-md shadow-indigo-600/10 dark:shadow-none transition-colors cursor-pointer"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              <span>New Check</span>
-            </Link>
-          </motion.div>
+            <Plus className="h-3.5 w-3.5" />
+            <span>New Check</span>
+          </PrimaryButton>
         )}
-
-
 
         {/* Theme Toggle Switcher */}
         <motion.button
           onClick={toggleTheme}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center justify-center text-slate-500 dark:text-slate-400 cursor-pointer overflow-hidden relative transition-colors duration-300"
+          className="h-9 w-9 rounded-lg border border-border bg-card hover:bg-bg flex items-center justify-center text-text-secondary cursor-pointer overflow-hidden relative transition-colors duration-300"
         >
           <AnimatePresence mode="wait" initial={false}>
             {theme === 'light' ? (
@@ -92,10 +86,10 @@ const Header = () => {
         >
           <Link
             to="/notifications"
-            className="h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-center justify-center text-slate-500 dark:text-slate-400 relative transition-colors duration-300 cursor-pointer"
+            className="h-9 w-9 rounded-lg border border-border bg-card hover:bg-bg flex items-center justify-center text-text-secondary relative transition-colors duration-300 cursor-pointer"
           >
             <Bell className="h-4.5 w-4.5" />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900 animate-pulse"></span>
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-danger ring-2 ring-card animate-pulse"></span>
           </Link>
         </motion.div>
 
@@ -106,7 +100,7 @@ const Header = () => {
         >
           <Link 
             to="/profile" 
-            className="h-9 w-9 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-xs transition-colors duration-300 cursor-pointer"
+            className="h-9 w-9 rounded-full bg-brand-light border border-brand/20 flex items-center justify-center font-bold text-brand text-xs transition-colors duration-300 cursor-pointer"
           >
             {user?.full_name ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
           </Link>

@@ -122,7 +122,7 @@ class ConfidenceCalculator:
         website_data: Optional[Dict], 
         ocr_performed: bool, 
         missing_info: List[str],
-        agreement_score: int
+        agreement_score: Optional[int] = None
     ) -> int:
         """
         Calculates a confidence score between 0 and 100.
@@ -176,9 +176,8 @@ class ConfidenceCalculator:
         if has_bullets or has_headings:
             confidence += 5
 
-        # 7. AI and Rule Agreement +10
-        if agreement_score >= 80:
-            confidence += 10
+        # 7. AI and Rule Agreement (Removed to make scores completely independent)
+        pass
 
         # 8. Gaps & Unknown details decrease confidence, NOT trust
         if not has_website:

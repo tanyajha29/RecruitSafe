@@ -127,6 +127,32 @@ class GroqProvider(AIService):
             logger.error(f"Groq analysis reasoning failed: {e}. Falling back to local heuristic reasoning.")
             return generate_local_fallback(text, evidence)
 
+    async def extract_missing_fields(self, text: str, missing_fields: List[str]) -> Dict[str, str]:
+        if not self.enabled:
+            return {field: "Unknown" for field in missing_fields}
+        try:
+            import re
+            import json
+            prompt = PromptBuilder.build_fallback_extraction_prompt(text, missing_fields)
+            response_text = await self._execute_with_backoff(prompt)
+            cleaned = response_text.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r'^```(?:json)?\n', '', cleaned)
+                cleaned = re.sub(r'\n```$', '', cleaned)
+                cleaned = cleaned.strip()
+            parsed = json.loads(cleaned)
+            result = {}
+            for field in missing_fields:
+                val = parsed.get(field, "Unknown")
+                if not val or str(val).strip() in ["", "None", "Null"]:
+                    result[field] = "Unknown"
+                else:
+                    result[field] = str(val).strip()
+            return result
+        except Exception as e:
+            logger.error(f"Groq extract_missing_fields failed: {e}")
+            return {field: "Unknown" for field in missing_fields}
+
 class MockProvider(AIService):
     """
     Mock AI Provider implementation that runs entirely locally using heuristics.
@@ -141,3 +167,6 @@ class MockProvider(AIService):
 
     async def analyze_job(self, text: str, evidence: List[Dict[str, Any]]) -> Dict[str, Any]:
         return generate_local_fallback(text, evidence)
+
+    async def extract_missing_fields(self, text: str, missing_fields: List[str]) -> Dict[str, str]:
+        return {field: "Unknown" for field in missing_fields}

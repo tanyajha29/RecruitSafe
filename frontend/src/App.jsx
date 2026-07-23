@@ -31,6 +31,12 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          
+          {/* Public Scan Submission & Results */}
+          <Route path="/analysis/new" element={<NewAnalysisPage />} />
+          <Route path="/analyze" element={<NewAnalysisPage />} />
+          <Route path="/analysis/:id" element={<AnalysisResultPage />} />
+          <Route path="/results/:id" element={<AnalysisResultPage />} />
 
           {/* Protected Routes */}
           <Route 
@@ -38,22 +44,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/analysis/new" 
-            element={
-              <ProtectedRoute>
-                <NewAnalysisPage />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/analysis/:id" 
-            element={
-              <ProtectedRoute>
-                <AnalysisResultPage />
               </ProtectedRoute>
             } 
           />

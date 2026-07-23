@@ -182,24 +182,37 @@ class WebsiteVerifier:
 
         try:
             w = whois.whois(clean_domain)
+            if not w or not hasattr(w, "creation_date") or not w.creation_date:
+                raise ValueError("WHOIS creation_date missing or invalid record format.")
+
             reg_date = None
-            if w.creation_date:
-                reg_date = w.creation_date[0] if isinstance(w.creation_date, list) else w.creation_date
+            if isinstance(w.creation_date, list):
+                dates = [d for d in w.creation_date if isinstance(d, datetime)]
+                if dates:
+                    reg_date = dates[0]
+            elif isinstance(w.creation_date, datetime):
+                reg_date = w.creation_date
+
+            if not reg_date:
+                raise ValueError("WHOIS creation date could not be parsed into a valid datetime object.")
 
             exp_date = None
             if w.expiration_date:
-                exp_date = w.expiration_date[0] if isinstance(w.expiration_date, list) else w.expiration_date
+                if isinstance(w.expiration_date, list):
+                    dates = [d for d in w.expiration_date if isinstance(d, datetime)]
+                    if dates:
+                        exp_date = dates[0]
+                elif isinstance(w.expiration_date, datetime):
+                    exp_date = w.expiration_date
 
-            age_days = None
-            if reg_date:
-                now = datetime.now() if reg_date.tzinfo is None else datetime.now(timezone.utc)
-                age_days = (now - reg_date).days
+            now = datetime.now() if reg_date.tzinfo is None else datetime.now(timezone.utc)
+            age_days = (now - reg_date).days
+
+            if age_days < 0:
+                raise ValueError(f"Calculated domain age is negative: {age_days}")
 
             registrar = w.registrar[0] if isinstance(w.registrar, list) else w.registrar
             country = w.country[0] if isinstance(w.country, list) else w.country
-
-            if not reg_date and not registrar:
-                raise Exception("Empty WHOIS response")
 
             result = {
                 "domain_age_days": age_days,
@@ -210,7 +223,7 @@ class WebsiteVerifier:
                 "whois_failed": False
             }
         except Exception as e:
-            logger.warning(f"WHOIS lookup failed for {clean_domain}: {e}")
+            logger.warning(f"WHOIS parsing failure for {clean_domain}: {e}")
             result["whois_failed"] = True
 
         # Cache result
@@ -240,11 +253,14 @@ class WebsiteVerifier:
         return result
 
     @classmethod
-    async def verify_website(cls, url: str) -> Dict[str, Any]:
+    async def verify_website(cls, url: str, careers_url_exists: bool = False) -> Dict[str, Any]:
         """Crawl website homepage, extract meta indicators, schema markup, and checks HTTPS."""
         normalized_url = url.strip()
         if not re.match(r'^https?://', normalized_url, re.IGNORECASE):
             normalized_url = "http://" + normalized_url
+
+        if careers_url_exists:
+            logger.info(f"WebsiteVerifier: Careers URL already extracted from job listing. Skipping active search.")
 
         result = {
             "url": url,
@@ -257,7 +273,7 @@ class WebsiteVerifier:
             "meta_description": None,
             "has_privacy_policy": False,
             "has_terms_conditions": False,
-            "has_careers": False,
+            "has_careers": True if careers_url_exists else False,
             "has_contact": False,
             "has_linkedin": False,
             "has_organization_schema": False,
@@ -317,7 +333,10 @@ class WebsiteVerifier:
                 result["has_terms_conditions"] = any("terms" in link or "condition" in link for link in links) or "terms of service" in page_text or "terms and conditions" in page_text
 
                 # Careers Page check
-                result["has_careers"] = any(k in link for link in links for k in ["career", "job", "join", "hiring", "recruit"]) or "careers" in page_text
+                if careers_url_exists:
+                    result["has_careers"] = True
+                else:
+                    result["has_careers"] = any(k in link for link in links for k in ["career", "job", "join", "hiring", "recruit"]) or "careers" in page_text
 
                 # Contact Page check
                 result["has_contact"] = any("contact" in link or "support" in link for link in links) or "contact us" in page_text

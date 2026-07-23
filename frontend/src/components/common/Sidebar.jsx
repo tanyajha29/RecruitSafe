@@ -41,26 +41,26 @@ const Sidebar = () => {
     <motion.aside 
       animate={{ width: isCollapsed ? 80 : 256 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className="bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 text-slate-500 dark:text-slate-400 flex flex-col h-screen shrink-0 relative z-20 transition-colors duration-300"
+      className="bg-card border-r border-border text-text-secondary flex flex-col h-screen shrink-0 relative z-20"
     >
       {/* Collapse Toggle Button */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute top-6 -right-3 h-6 w-6 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 transition-transform z-30"
+        className="absolute top-6 -right-3 h-6 w-6 rounded-full border border-border bg-card text-text-secondary hover:text-text-primary flex items-center justify-center shadow-sm cursor-pointer hover:scale-105 transition-transform z-30"
       >
         {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </button>
 
       {/* Brand Header */}
-      <div className="h-20 flex items-center gap-2.5 px-6 border-b border-slate-200/80 dark:border-slate-800/80 overflow-hidden shrink-0">
-        <ShieldCheck className="h-7 w-7 text-indigo-600 dark:text-indigo-500 stroke-[2.5]" />
+      <div className="h-20 flex items-center gap-2.5 px-6 border-b border-border overflow-hidden shrink-0">
+        <ShieldCheck className="h-7 w-7 text-brand stroke-[2.5]" />
         <AnimatePresence>
           {!isCollapsed && (
             <motion.span 
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -10 }}
-              className="text-slate-800 dark:text-white font-bold text-lg tracking-tight whitespace-nowrap"
+              className="text-text-primary font-bold text-lg tracking-tight whitespace-nowrap"
             >
               RecruitSafe
             </motion.span>
@@ -77,18 +77,18 @@ const Sidebar = () => {
             <NavLink
               key={item.name}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer relative group ${isActive ? 'text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800/40 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'}`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 cursor-pointer relative group ${isActive ? 'text-white' : 'hover:bg-bg text-text-secondary hover:text-brand'}`}
             >
               {/* Active Background Slide Indicator */}
               {isActive && (
                 <motion.div
                   layoutId="activeNavIndicator"
-                  className="absolute inset-0 bg-indigo-600 rounded-xl -z-10 shadow-sm"
+                  className="absolute inset-0 bg-brand rounded-lg -z-10 shadow-sm"
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               )}
               
-              <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'}`} />
+              <Icon className={`h-4.5 w-4.5 shrink-0 transition-colors duration-200 ${isActive ? 'text-white' : 'text-text-secondary/80 group-hover:text-brand'}`} />
               
               <AnimatePresence>
                 {!isCollapsed && (
@@ -96,7 +96,7 @@ const Sidebar = () => {
                     initial={{ opacity: 0, width: 0 }}
                     animate={{ opacity: 1, width: 'auto' }}
                     exit={{ opacity: 0, width: 0 }}
-                    className={`whitespace-nowrap transition-colors duration-200 ${isActive ? 'text-white font-bold' : 'group-hover:text-indigo-700 dark:group-hover:text-indigo-350'}`}
+                    className={`whitespace-nowrap transition-colors duration-200 ${isActive ? 'text-white font-bold' : 'group-hover:text-text-primary'}`}
                   >
                     {item.name}
                   </motion.span>
@@ -108,10 +108,10 @@ const Sidebar = () => {
       </nav>
 
       {/* Footer Profile card */}
-      <div className="p-4 border-t border-slate-200/80 dark:border-slate-800/80 shrink-0">
-        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/30 rounded-xl p-3 mb-2 overflow-hidden">
+      <div className="p-4 border-t border-border shrink-0">
+        <div className="flex items-center gap-3 bg-bg border border-border rounded-lg p-3 mb-2 overflow-hidden">
           {/* Avatar */}
-          <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-900 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-400 text-sm shrink-0">
+          <div className="h-9 w-9 rounded-full bg-brand-light border border-brand/20 flex items-center justify-center font-bold text-brand text-sm shrink-0">
             {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
           </div>
           <AnimatePresence>
@@ -120,10 +120,10 @@ const Sidebar = () => {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="min-w-0 flex-1"
+                className="min-w-0 flex-1 text-left"
               >
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{user?.full_name || 'Loading...'}</p>
-                <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider">Standard Plan</p>
+                <p className="text-xs font-bold text-text-primary truncate">{user?.full_name || 'Loading...'}</p>
+                <p className="text-[9px] text-text-secondary font-semibold uppercase tracking-wider">Standard Plan</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -131,7 +131,7 @@ const Sidebar = () => {
 
         <button
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-650 dark:hover:text-red-400 transition-colors cursor-pointer"
+          className="flex w-full items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-text-secondary hover:bg-danger/5 hover:text-danger transition-colors cursor-pointer"
         >
           <LogOut className="h-4.5 w-4.5 shrink-0" />
           <AnimatePresence>

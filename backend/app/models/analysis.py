@@ -44,7 +44,9 @@ class Analysis(Document):
     # Technical Detections & Evidence
     evidence: List[Dict] = Field(default_factory=list)  # {id, rule_id, title, category, severity, score, matched_text, reason, evidence_type, confidence, source}
     website_data: Optional[Dict] = None
+    structured_evidence: Optional[Dict[str, Any]] = None
     email_data: Optional[Dict] = None
+    hybrid_verdict: Optional[Dict[str, Any]] = None
     pdf_file_path: Optional[str] = None
 
     # Meta

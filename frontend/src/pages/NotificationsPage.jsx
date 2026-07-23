@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import Layout from '../components/common/Layout';
+import { Card, SecondaryButton, Badge } from '../components/common/Primitives';
 import { 
   Bell, 
   CheckCheck, 
-  Trash2, 
   AlertCircle, 
   CheckCircle2, 
   Info, 
-  FileCheck,
-  Calendar,
-  Layers
+  FileCheck
 } from 'lucide-react';
 
 const NotificationsPage = () => {
@@ -43,7 +40,6 @@ const NotificationsPage = () => {
   const handleMarkAllRead = async () => {
     try {
       await api.post('/api/notifications/read-all');
-      // Update local state to show all as read
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
       console.error(err);
@@ -52,11 +48,9 @@ const NotificationsPage = () => {
   };
 
   const handleNotificationClick = async (item) => {
-    // 1. Mark as read on backend if unread
     if (!item.is_read) {
       try {
         await api.put(`/api/notifications/${item.id}/read`);
-        // Update local state
         setNotifications((prev) => 
           prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
         );
@@ -65,7 +59,6 @@ const NotificationsPage = () => {
       }
     }
 
-    // 2. Redirect to analysis details if associated
     if (item.analysis_id) {
       navigate(`/analysis/${item.analysis_id}`);
     }
@@ -74,13 +67,13 @@ const NotificationsPage = () => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'analysis_complete':
-        return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+        return <CheckCircle2 className="h-5 w-5 text-success" />;
       case 'upload_error':
-        return <AlertCircle className="h-5 w-5 text-red-500" />;
+        return <AlertCircle className="h-5 w-5 text-danger" />;
       case 'pdf_ready':
-        return <FileCheck className="h-5 w-5 text-brand-500" />;
+        return <FileCheck className="h-5 w-5 text-brand" />;
       default:
-        return <Info className="h-5 w-5 text-slate-500" />;
+        return <Info className="h-5 w-5 text-text-secondary" />;
     }
   };
 
@@ -106,81 +99,78 @@ const NotificationsPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6 select-none">
         
-        {/* Header summary info & Read all trigger */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+        {/* Header summary info */}
+        <div className="flex items-center justify-between pb-4 border-b border-border text-left">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Notifications</h2>
-            <p className="text-xs text-slate-400 font-semibold mt-1">
-              You have <span className="text-brand-600 font-bold">{unreadCount}</span> unread alert notifications
+            <h2 className="text-xl font-bold text-text-primary tracking-tight">Notifications</h2>
+            <p className="text-xs text-text-secondary font-semibold mt-1">
+              You have <span className="text-brand font-bold">{unreadCount}</span> unread alert notifications
             </p>
           </div>
 
           {unreadCount > 0 && (
-            <button
+            <SecondaryButton
               onClick={handleMarkAllRead}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:border-slate-350 hover:bg-slate-50 text-slate-700 font-bold text-xs px-3.5 py-2.5 transition-colors cursor-pointer"
+              className="text-xs px-3.5 py-2.5"
             >
-              <CheckCheck className="h-4 w-4 text-slate-500" />
+              <CheckCheck className="h-4 w-4 text-text-secondary" />
               <span>Mark all as read</span>
-            </button>
+            </SecondaryButton>
           )}
         </div>
 
         {/* List of alerts */}
         {loading ? (
           <div className="flex h-64 w-full items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-brand border-t-transparent"></div>
           </div>
         ) : error ? (
-          <div className="py-12 text-center text-red-500 font-medium">{error}</div>
+          <div className="py-12 text-center text-danger font-medium">{error}</div>
         ) : notifications.length === 0 ? (
-          <div className="rounded-2xl bg-white p-12 text-center border border-slate-200/80">
-            <Bell className="h-10 w-10 text-slate-300 mx-auto mb-4 stroke-[1.5]" />
-            <p className="text-slate-400 font-medium text-sm">No notifications found.</p>
-          </div>
+          <Card className="p-12 text-center">
+            <Bell className="h-10 w-10 text-text-secondary/40 mx-auto mb-4 stroke-[1.5]" />
+            <p className="text-text-secondary font-bold text-sm">No notifications found.</p>
+          </Card>
         ) : (
           <div className="space-y-3">
-            <AnimatePresence>
-              {notifications.map((item) => (
-                <motion.div
-                  key={item.id}
-                  layout
-                  onClick={() => handleNotificationClick(item)}
-                  className={`rounded-xl border p-4 transition-all duration-200 flex items-start gap-4 cursor-pointer relative overflow-hidden ${
-                    item.is_read 
-                      ? 'bg-white border-slate-200/60 hover:bg-slate-50/20' 
-                      : 'bg-brand-500/[0.02] border-brand-500/20 hover:bg-brand-500/[0.04]'
-                  }`}
-                >
-                  {/* Unread indicator bar */}
-                  {!item.is_read && (
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-500"></div>
-                  )}
+            {notifications.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleNotificationClick(item)}
+                className={`rounded-xl border p-4 transition-all duration-200 flex items-start gap-4 cursor-pointer relative overflow-hidden text-left ${
+                  item.is_read 
+                    ? 'bg-card border-border hover:bg-bg/40' 
+                    : 'bg-brand-light border-brand/35 hover:bg-brand-light/70'
+                }`}
+              >
+                {/* Unread indicator bar */}
+                {!item.is_read && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand"></div>
+                )}
 
-                  {/* Icon */}
-                  <div className="h-9 w-9 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0">
-                    {getNotificationIcon(item.type)}
-                  </div>
+                {/* Icon */}
+                <div className="h-9 w-9 rounded-lg bg-bg border border-border flex items-center justify-center shrink-0">
+                  {getNotificationIcon(item.type)}
+                </div>
 
-                  {/* Content details */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center justify-between gap-4">
-                      <h4 className={`text-sm leading-tight truncate ${item.is_read ? 'text-slate-700 font-bold' : 'text-slate-800 font-extrabold'}`}>
-                        {item.title}
-                      </h4>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">
-                        {formatNotificationTime(item.created_at)}
-                      </span>
-                    </div>
-                    <p className={`text-xs leading-relaxed ${item.is_read ? 'text-slate-500 font-semibold' : 'text-slate-655 font-bold'}`}>
-                      {item.message}
-                    </p>
+                {/* Content details */}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center justify-between gap-4">
+                    <h4 className={`text-sm leading-tight truncate font-bold text-text-primary`}>
+                      {item.title}
+                    </h4>
+                    <span className="text-[10px] text-text-secondary font-mono font-bold uppercase tracking-wider shrink-0">
+                      {formatNotificationTime(item.created_at)}
+                    </span>
                   </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                  <p className={`text-xs leading-relaxed text-text-secondary`}>
+                    {item.message}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

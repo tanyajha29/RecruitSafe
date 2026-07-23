@@ -52,3 +52,21 @@ Based on this, perform semantic reasoning and output your findings in a strict J
 
 Return ONLY the raw JSON string. Do not wrap the JSON in markdown code blocks like ```json ... ```. Do not add any text before or after the JSON.
 """
+
+    @staticmethod
+    def build_fallback_extraction_prompt(text: str, missing_fields: List[str]) -> str:
+        fields_str = "\n".join([f'- "{field}"' for field in missing_fields])
+        return f"""
+You are a precise data extraction agent. Extract the values for the following fields from the given Job Text:
+{fields_str}
+
+Rules:
+1. Do NOT invent, assume, or infer any information.
+2. If the information is not explicitly found in the text, return "Unknown" for that field.
+3. Return a clean JSON object with the requested field names as keys. Do not include markdown code blocks.
+
+Job Text:
+---
+{text}
+---
+"""

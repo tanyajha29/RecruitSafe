@@ -38,13 +38,13 @@ def test_scam_financial_fraud_matches():
     evidence, red_flags, deductions = ScamRuleEngine.analyze_text(text)
     assert len(evidence) == 1
     assert evidence[0]["category"] == "financial_fraud"
-    assert evidence[0]["points_deducted"] == 20
-    assert deductions == 20
+    assert evidence[0]["points_deducted"] == 40
+    assert deductions == 40
     
     score, prob, category = RiskScorer.calculate_risk(deductions)
-    assert score == 80
-    assert prob == 20.0
-    assert category == "Safe" # still safe at exactly 80
+    assert score == 60
+    assert prob == 40.0
+    assert category == "Needs Verification"
 
 def test_multiple_scam_patterns():
     """

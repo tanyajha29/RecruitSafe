@@ -1,0 +1,220 @@
+{
+  "rules": [
+    {
+      "id": "registration_fee",
+      "name": "Registration Fee Requested",
+      "description": "The job description requests a registration, application, or processing fee to apply or secure a spot.",
+      "category": "financial_fraud",
+      "severity": "high",
+      "weight_key": "payment_request",
+      "default_weight": -50,
+      "keywords": [
+        "\\bregistration\\s*fee\\b",
+        "\\bprocessing\\s*fee\\b",
+        "\\bapplication\\s*fee\\b",
+        "\\brefundable\\s*deposit\\b"
+      ]
+    },
+    {
+      "id": "training_fee",
+      "name": "Training Fee Required",
+      "description": "Requests payment for training materials or mandatory certifications before starting employment.",
+      "category": "financial_fraud",
+      "severity": "high",
+      "weight_key": "payment_request",
+      "default_weight": -50,
+      "keywords": [
+        "\\btraining\\s*fee\\b",
+        "\\bmandatory\\s*training\\s*cost\\b",
+        "\\bpay\\s*for\\s*training\\b",
+        "\\bcertification\\s*fee\\b"
+      ]
+    },
+    {
+      "id": "security_deposit",
+      "name": "Security Deposit Requested",
+      "description": "Requests an upfront refundable security deposit for equipment, laptops, or remote work setups.",
+      "category": "financial_fraud",
+      "severity": "high",
+      "weight_key": "payment_request",
+      "default_weight": -50,
+      "keywords": [
+        "\\bsecurity\\s*deposit\\b",
+        "\\brefundable\\s*security\\b",
+        "\\brefundable\\s*caution\\s*deposit\\b"
+      ]
+    },
+    {
+      "id": "equipment_purchase",
+      "name": "Upfront Equipment Purchase",
+      "description": "Instructs candidates to purchase their own laptops or equipment with promised reimbursement checks.",
+      "category": "financial_fraud",
+      "severity": "high",
+      "weight_key": "payment_request",
+      "default_weight": -50,
+      "keywords": [
+        "\\bequipment\\s*purchase\\b",
+        "\\bbuy\\s*your\\s*own\\s*laptop\\b",
+        "\\bcheck\\s*for\\s*equipment\\b",
+        "\\bsend\\s*check\\b",
+        "\\bpurchase\\s*software\\b"
+      ]
+    },
+    {
+      "id": "aadhaar_pan_request",
+      "name": "Identity Document Requested Upfront",
+      "description": "Requests sensitive government identifiers (like Aadhaar, PAN card, or Passport) before any interview.",
+      "category": "identity_theft",
+      "severity": "high",
+      "weight_key": "no_company_name",
+      "default_weight": -20,
+      "explanation": "Government ID numbers should only be collected during background checks after a formal contract is offered.",
+      "keywords": [
+        "\\baadhaar\\b",
+        "\\bpan\\s*(?:card|number)?\\b",
+        "\\bpassport\\s*(?:details|copy)\\b",
+        "\\bidentity\\s*document\\b"
+      ]
+    },
+    {
+      "id": "bank_account_request",
+      "name": "Bank Details Requested",
+      "description": "Requests bank accounts, card numbers, or direct deposit setup details prior to formal background checks.",
+      "category": "identity_theft",
+      "severity": "high",
+      "weight_key": "no_company_name",
+      "default_weight": -20,
+      "explanation": "Sharing direct deposit details prior to formal selection raises a high risk of identity theft and bank fraud.",
+      "keywords": [
+        "\\bbank\\s*account\\b",
+        "\\baccount\\s*details\\b",
+        "\\brouting\\s*number\\b",
+        "\\bcard\\s*details\\b",
+        "\\bbank\\s*details\\b"
+      ]
+    },
+    {
+      "id": "otp_request",
+      "name": "OTP / UPI Pin Request",
+      "description": "Asks candidates to share verification codes, OTPs, or UPI PINs.",
+      "category": "identity_theft",
+      "severity": "high",
+      "weight_key": "telegram_only",
+      "default_weight": -40,
+      "explanation": "OTPs and PINs are private and sharing them exposes candidates to financial fraud.",
+      "keywords": [
+        "\\botp\\b",
+        "\\bone-time\\s*password\\b",
+        "\\bone\\s*time\\s*password\\b",
+        "\\bverification\\s*code\\b",
+        "\\bupi\\s*pin\\b"
+      ]
+    },
+    {
+      "id": "no_interview",
+      "name": "Direct Hiring Without Interview",
+      "description": "Guarantees job offers or direct placement without any formal screening.",
+      "category": "unrealistic_offers",
+      "severity": "medium",
+      "weight_key": "no_interview",
+      "default_weight": -35,
+      "keywords": [
+        "\\bno\\s*interview\\b",
+        "\\bdirect\\s*joining\\b",
+        "\\bdirect\\s*selection\\b",
+        "\\bwithout\\s*interview\\b",
+        "\\bspot\\s*selection\\b"
+      ]
+    },
+    {
+      "id": "guaranteed_placement",
+      "name": "Guaranteed Employment Promise",
+      "description": "Guarantees employment regardless of experience or qualification.",
+      "category": "unrealistic_offers",
+      "severity": "medium",
+      "weight_key": "no_interview",
+      "default_weight": -35,
+      "keywords": [
+        "\\bguaranteed\\s*job\\b",
+        "\\b100%\\s*guaranteed\\s*placement\\b",
+        "\\bjob\\s*assurance\\b",
+        "\\bguaranteed\\s*placement\\b"
+      ]
+    },
+    {
+      "id": "urgency_urg",
+      "name": "Urgent Action Required",
+      "description": "Creates synthetic panic by demanding payment or replies within an extremely short, restrictive window.",
+      "category": "pressure_tactics",
+      "severity": "medium",
+      "weight_key": "immediate_joining",
+      "default_weight": -20,
+      "keywords": [
+        "\\bwithin\\s*30\\s*minutes\\b",
+        "\\bconfirm\\s*within\\s*2\\s*hours\\b",
+        "\\bpay\\s*immediately\\b",
+        "\\bimmediate\\s*payment\\b",
+        "\\bquick\\s*action\\s*required\\b",
+        "\\bhurry\\s*up\\b"
+      ]
+    },
+    {
+      "id": "limited_offer",
+      "name": "Artificial Scarcity Pressure",
+      "description": "Uses artificial scarcity language to pressure candidates into making emotionally driven, rash decisions.",
+      "category": "pressure_tactics",
+      "severity": "low",
+      "weight_key": "immediate_joining",
+      "default_weight": -20,
+      "keywords": [
+        "\\bonly\\s*today\\b",
+        "\\boffer\\s*expires\\s*today\\b",
+        "\\blast\\s*day\\s*to\\s*pay\\b",
+        "\\bseats\\s*filling\\s*fast\\b",
+        "\\blimited\\s*offer\\b"
+      ]
+    },
+    {
+      "id": "free_email_body",
+      "name": "Public Domain Recruiter Email",
+      "description": "Mentions contact details routing to free, public email addresses.",
+      "category": "contact_anomalies",
+      "severity": "medium",
+      "weight_key": "free_email",
+      "default_weight": -20,
+      "keywords": [
+        "\\b[a-zA-Z0-9._%+-]+@gmail\\.com\\b",
+        "\\b[a-zA-Z0-9._%+-]+@yahoo\\.com\\b",
+        "\\b[a-zA-Z0-9._%+-]+@outlook\\.com\\b",
+        "\\b[a-zA-Z0-9._%+-]+@hotmail\\.com\\b"
+      ]
+    },
+    {
+      "id": "whatsapp_only",
+      "name": "WhatsApp-Only Recruiter Contact",
+      "description": "Recruiter directs candidates to communicate exclusively via personal WhatsApp chats or links.",
+      "category": "contact_anomalies",
+      "severity": "low",
+      "weight_key": "whatsapp_only",
+      "default_weight": -40,
+      "keywords": [
+        "\\bwhatsapp\\s*(?:only|group|chat|link|number|us\\s*at)\\b",
+        "wa\\.me\\/",
+        "chat\\.whatsapp\\.com\\/"
+      ]
+    },
+    {
+      "id": "telegram_only",
+      "name": "Telegram-Only Recruiter Contact",
+      "description": "Recruiter directs candidates to communicate exclusively via Telegram channels.",
+      "category": "contact_anomalies",
+      "severity": "medium",
+      "weight_key": "telegram_only",
+      "default_weight": -40,
+      "keywords": [
+        "\\btelegram\\s*(?:only|group|chat|link|number|us\\s*at)\\b",
+        "t\\.me\\/"
+      ]
+    }
+  ]
+}

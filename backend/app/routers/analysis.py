@@ -9,7 +9,7 @@ import bleach
 from app.models.user import User
 from app.models.analysis import Analysis
 from app.schemas.analysis import AnalysisResponse
-from app.middleware.auth import get_current_user
+from app.middleware.auth import get_current_user, get_current_user_optional
 from app.services.document_processor import DocumentProcessor
 from app.services.pipeline import run_analysis_pipeline
 
@@ -25,7 +25,7 @@ async def submit_analysis(
     input_type: str = Form(...),
     content: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user_optional)
 ):
     """
     Submits a new job/document for verification.
@@ -106,7 +106,7 @@ async def submit_analysis(
     }
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse, status_code=status.HTTP_200_OK)
-async def get_analysis_details(analysis_id: str, current_user: User = Depends(get_current_user)):
+async def get_analysis_details(analysis_id: str, current_user: User = Depends(get_current_user_optional)):
     """
     Retrieves the complete results or status of a specific job scan.
     """
@@ -127,7 +127,7 @@ async def get_analysis_details(analysis_id: str, current_user: User = Depends(ge
     return analysis
 
 @router.delete("/{analysis_id}", status_code=status.HTTP_200_OK)
-async def delete_analysis(analysis_id: str, current_user: User = Depends(get_current_user)):
+async def delete_analysis(analysis_id: str, current_user: User = Depends(get_current_user_optional)):
     """
     Permanently deletes a specific job scan from history.
     """

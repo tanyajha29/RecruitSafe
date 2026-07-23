@@ -57,13 +57,13 @@ class PipelineOrchestrator:
             else:
                 enriched["score"] = -abs(pts) if pts != 0 else -10
                 
-        # 6. matched_text
-        if "matched_text" not in enriched:
-            enriched["matched_text"] = "Extracted context text"
+        # 6. matched_text (Evidence)
+        if "matched_text" not in enriched or not enriched["matched_text"] or enriched["matched_text"] == "Extracted context text":
+            enriched["matched_text"] = enriched.get("matched_text") or f"Extracted details for {enriched['title']}"
             
-        # 7. reason
-        if "reason" not in enriched:
-            enriched["reason"] = enriched.get("description", "No explicit reasoning provided.")
+        # 7. reason (Reason)
+        if "reason" not in enriched or not enriched["reason"] or enriched["reason"] == "No explicit reasoning provided.":
+            enriched["reason"] = enriched.get("reason") or enriched.get("description") or f"Legitimacy or threat validation matching rule {enriched['id']}"
             
         # 8. evidence_type
         if "evidence_type" not in enriched:
@@ -87,14 +87,21 @@ class PipelineOrchestrator:
                 
         # 10. description (legacy map)
         enriched["description"] = enriched["reason"]
-        # rule_id compatibility
+        
+        # rule_id compatibility (Rule ID)
         if "rule_id" not in enriched:
-            enriched["rule_id"] = f"RULE_{abs(hash(enriched['id'])) % 1000:03d}"
+            enriched["rule_id"] = enriched["id"]
+        
+        # weight mapping (Weight)
+        enriched["weight"] = enriched["score"]
         
         # Backwards compatible mapping
         enriched["factor_name"] = enriched["title"]
         enriched["points_deducted"] = abs(enriched["score"])
-        enriched["source"] = default_source
+        
+        # 11. source
+        if "source" not in enriched:
+            enriched["source"] = default_source
             
         return enriched
 
@@ -104,7 +111,8 @@ class PipelineOrchestrator:
         input_type: str,
         original_content: str,
         processed_text: Optional[str] = None,
-        ocr_performed: bool = False
+        ocr_performed: bool = False,
+        structured_evidence: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Runs the sequential assessment logic flow deterministically."""
         start_time = time.time()
@@ -122,8 +130,15 @@ class PipelineOrchestrator:
             detected_url = WebsiteVerifier.extract_url(scam_text)
 
         if detected_url:
-            decision_trace.append(f"Extracting and verifying website presence: {detected_url}")
-            website_data = await WebsiteVerifier.verify_website(detected_url)
+            careers_url_entity = (structured_evidence or {}).get("careers_url", {})
+            careers_url_val = careers_url_entity.get("value") if isinstance(careers_url_entity, dict) else getattr(careers_url_entity, "value", None)
+            careers_url_exists = (
+                careers_url_val is not None 
+                and str(careers_url_val).strip() != "" 
+                and str(careers_url_val).strip().lower() not in ["unknown", "none", "not found", "not_found"]
+            )
+            decision_trace.append(f"Extracting and verifying website presence: {detected_url} (Careers pre-extracted: {careers_url_exists})")
+            website_data = await WebsiteVerifier.verify_website(detected_url, careers_url_exists=careers_url_exists)
             decision_trace.append("Website presence crawled successfully.")
 
         # 2. Email Verification Check
@@ -155,7 +170,7 @@ class PipelineOrchestrator:
         all_positives = []
 
         # Technical scan matches
-        rule_evidence, red_flags, _ = ScamRuleEngine.analyze_text(scam_text)
+        rule_evidence, red_flags, _ = ScamRuleEngine.analyze_text(scam_text, structured_evidence)
         all_evidence.extend(rule_evidence)
 
         # Salary check
@@ -381,7 +396,62 @@ class PipelineOrchestrator:
             verification_status=verification_panel
         )
 
+        # 11. Run Machine Learning Model prediction
+        from app.services.ai.ml_service import MLService
+        ml_prediction, ml_probability = MLService.predict(scam_text)
+
+        # 12. Run Decision Fusion Engine
+        from app.services.fusion.fusion_engine import DecisionFusionEngine
+        fusion_result = DecisionFusionEngine.fuse_decision(
+            canonical_entities=structured_evidence or {},
+            rule_engine_result=enriched_evidence,
+            verification_result=verification_panel,
+            ml_prediction=ml_prediction,
+            ml_probability=ml_probability
+        )
+
+        # Override legacy scoring metrics with hybrid decision fusion outputs
+        verdict_mapping = {
+            "SAFE": "Safe",
+            "SUSPICIOUS": "Suspicious",
+            "HIGH_RISK": "High Risk",
+            "SCAM": "Scam"
+        }
+        fused_verdict = verdict_mapping.get(fusion_result["final_verdict"], "Suspicious")
+
+        trust_score = 100 - fusion_result["final_risk_score"]
+        scam_prob = float(fusion_result["final_risk_score"])
+        risk_cat = fused_verdict
+        confidence_score = int(fusion_result["confidence"])
+        recs = fusion_result["recommended_actions"]
+
+        decision_trace.append(f"Decision Fusion Engine complete: Verdict={risk_cat}, Risk Score={scam_prob}")
         decision_trace.append("Pipeline orchestration completed successfully.")
+
+        # Build Hybrid Decision Summary explanation
+        risk_explanation = f"""### Hybrid Decision Summary
+* **Final Trust Verdict**: {risk_cat}
+* **Scam Probability (Weighted Risk Score)**: {scam_prob}/100
+* **Analysis Confidence**: {confidence_score}%
+
+### Decision Breakdown
+* **Rule Engine Scam Index**: {fusion_result['decision_breakdown']['rule_engine']['score']}/100
+  * Key Indicators: {", ".join(fusion_result['decision_breakdown']['rule_engine']['reasons']) or "None"}
+* **Verification Risk Score**: {fusion_result['decision_breakdown']['verification']['score']}/100
+  * Failed Verifications: {", ".join(fusion_result['decision_breakdown']['verification']['reasons']) or "None"}
+* **Machine Learning Content Scorer**:
+  * Scam Probability: {round(fusion_result['decision_breakdown']['machine_learning']['probability'] * 100, 1)}%
+  * Classifier Verdict: {fusion_result['decision_breakdown']['machine_learning']['prediction']}
+"""
+
+        # Build programmatic, evidence-based executive summary
+        summary_parts = [
+            f"Hybrid Decision Intelligence evaluated this job listing as {risk_cat} with {confidence_score}% confidence.",
+            f"Rule engine scam index is {fusion_result['decision_breakdown']['rule_engine']['score']}/100.",
+            f"Verification risk score is {fusion_result['decision_breakdown']['verification']['score']}/100.",
+            f"XGBoost content classifier predicted scam probability of {round(fusion_result['decision_breakdown']['machine_learning']['probability'] * 100, 1)}%."
+        ]
+        evidence_based_summary = " ".join(summary_parts)
 
         # Compile final dictionary result
         return {
@@ -396,12 +466,13 @@ class PipelineOrchestrator:
             "evidence": enriched_evidence,
             "positive_findings": enriched_positives,
             "recommendations": recs,
-            "ai_summary": ai_data.get("ai_summary", ""),
-            "risk_explanation": ai_data.get("risk_explanation", ""),
+            "ai_summary": evidence_based_summary,
+            "risk_explanation": risk_explanation,
             "red_flags": ai_data.get("red_flags", []),
             "website_data": website_data,
             "email_data": email_data,
             "hiring_workflow": workflow_data,
             "decision_trace": decision_trace,
+            "hybrid_verdict": fusion_result,
             "processing_time_ms": int((time.time() - start_time) * 1000)
         }

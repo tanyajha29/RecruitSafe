@@ -72,11 +72,18 @@ class CompanyVerifier:
                 panel["WHOIS"] = "Not Found"
                 panel["Domain Age"] = "Unknown"
 
-            # Crawled signals checks
-            panel["LinkedIn"] = "Found" if website_data.get("has_linkedin", False) else "Not Found"
-            panel["Privacy Policy"] = "Found" if website_data.get("has_privacy_policy", False) else "Not Found"
-            panel["Terms"] = "Found" if website_data.get("has_terms_conditions", False) else "Not Found"
-            panel["Careers Page"] = "Found" if website_data.get("has_careers", False) else "Not Found"
+            # Crawled signals checks (differentiate Missing vs Unknown)
+            is_inspected = website_data.get("is_reachable", False)
+            if is_inspected:
+                panel["LinkedIn"] = "Found" if website_data.get("has_linkedin", False) else "Missing"
+                panel["Privacy Policy"] = "Found" if website_data.get("has_privacy_policy", False) else "Missing"
+                panel["Terms"] = "Found" if website_data.get("has_terms_conditions", False) else "Missing"
+                panel["Careers Page"] = "Found" if website_data.get("has_careers", False) else "Missing"
+            else:
+                panel["LinkedIn"] = "Unknown"
+                panel["Privacy Policy"] = "Unknown"
+                panel["Terms"] = "Unknown"
+                panel["Careers Page"] = "Unknown"
 
             # Website overall resolution
             if panel["DNS"] == "Unreachable":

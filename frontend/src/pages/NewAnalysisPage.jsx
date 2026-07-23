@@ -4,23 +4,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 import Layout from '../components/common/Layout';
 import FileUploader from '../components/analysis/FileUploader';
+import { Card, PrimaryButton, InputField, Alert } from '../components/common/Primitives';
 import { 
-  FileText, 
-  Mail, 
-  Globe, 
-  Upload, 
-  Image as ImageIcon, 
   ShieldAlert, 
   AlertTriangle,
   Play,
-  CheckCircle,
-  HelpCircle,
-  ArrowRight,
-  Sparkles
+  Sparkles,
+  Link as LinkIcon,
+  Mail,
+  FileText
 } from 'lucide-react';
 
 const NewAnalysisPage = () => {
-  const [activeTab, setActiveTab] = useState('text'); // 'text', 'email', 'url', 'pdf', 'image'
+  const [activeTab, setActiveTab] = useState('email'); // 'link', 'email', 'document'
   const [content, setContent] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   
@@ -31,14 +27,6 @@ const NewAnalysisPage = () => {
   const [error, setError] = useState('');
 
   const navigate = useNavigate();
-
-  const tabs = [
-    { id: 'text', name: 'Job Description', icon: FileText, desc: 'Paste raw job posting text details', placeholder: 'Paste the raw job description here...' },
-    { id: 'email', name: 'Recruiter Email', icon: Mail, desc: 'Analyze recruiter messages for phishing links', placeholder: 'Paste the recruiter\'s email content here (include headers if possible)...' },
-    { id: 'url', name: 'Company Website', icon: Globe, desc: 'Check SSL and WHOIS registration age', placeholder: 'Enter the company\'s official website URL (e.g., https://example.com)...' },
-    { id: 'pdf', name: 'PDF Offer Letter', icon: Upload, desc: 'Scan document text metadata for fraud clues' },
-    { id: 'image', name: 'Screenshot / Image', icon: ImageIcon, desc: 'OCR scan of screenshots or banners' },
-  ];
 
   const pipelineSteps = [
     "Uploading submission and registering job check...",
@@ -92,7 +80,7 @@ const NewAnalysisPage = () => {
         console.error('Error polling status:', err);
         clearInterval(pollInterval);
         setIsAnalyzing(false);
-        setError('Connection lost while checking analysis status. Please check your internet or retry.');
+        setError('Connection lost while checking analysis status.');
       }
     }, 2000);
   };
@@ -104,21 +92,33 @@ const NewAnalysisPage = () => {
     setProgressStep(0);
 
     const formData = new FormData();
-    formData.append('input_type', activeTab);
 
-    if (['text', 'email', 'url'].includes(activeTab)) {
+    if (activeTab === 'link') {
       if (!content || !content.trim()) {
-        setError('Please fill in the input content field.');
+        setError('Please enter a job posting URL.');
         setIsAnalyzing(false);
         return;
       }
+      formData.append('input_type', 'url');
+      formData.append('content', content);
+    } else if (activeTab === 'email') {
+      if (!content || !content.trim()) {
+        setError('Please paste job description or email text content.');
+        setIsAnalyzing(false);
+        return;
+      }
+      formData.append('input_type', 'email');
       formData.append('content', content);
     } else {
+      // Document upload
       if (!selectedFile) {
-        setError('Please select a file to upload first.');
+        setError('Please select a document file to upload.');
         setIsAnalyzing(false);
         return;
       }
+      const ext = selectedFile.name.split('.').pop().toLowerCase();
+      const isPDF = ext === 'pdf';
+      formData.append('input_type', isPDF ? 'pdf' : 'image');
       formData.append('file', selectedFile);
     }
 
@@ -144,7 +144,7 @@ const NewAnalysisPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 select-none">
         
         {/* Error Callout */}
         <AnimatePresence>
@@ -153,13 +153,10 @@ const NewAnalysisPage = () => {
               initial={{ opacity: 0, y: -15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="flex items-start gap-3 rounded-2xl bg-red-50 dark:bg-red-950/20 p-4 text-sm text-red-700 dark:text-red-400 border border-red-100 dark:border-red-900/40 shadow-sm"
             >
-              <AlertTriangle className="h-5 w-5 shrink-0 text-red-500 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold">Check Failed</p>
-                <p className="text-xs text-red-650 dark:text-red-400/90 leading-relaxed">{error}</p>
-              </div>
+              <Alert variant="danger" onClose={() => setError('')}>
+                {error}
+              </Alert>
             </motion.div>
           )}
         </AnimatePresence>
@@ -171,104 +168,181 @@ const NewAnalysisPage = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="rounded-2xl bg-white dark:bg-slate-900 p-8 shadow-sm border border-slate-200/80 dark:border-slate-800/80 transition-colors duration-300"
+              className="space-y-12"
             >
-              <div className="mb-8">
-                <div className="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full text-xs font-bold mb-3">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Real-time Scans</span>
-                </div>
-                <h2 className="text-xl font-bold text-slate-850 dark:text-slate-100">Job Scam Scan Analyzer</h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium mt-1">
-                  Choose your input format, paste or upload, and our scanner will analyze company domains, text indicators, and AI trust scoring.
+              {/* Header Section */}
+              <div className="text-center space-y-4">
+                <h1 className="font-sans text-3xl font-extrabold text-text-primary tracking-tight">New Analysis</h1>
+                <p className="font-sans text-[16px] text-text-secondary max-w-lg mx-auto">
+                  Submit recruiter communications or job descriptions for intelligent fraud detection.
                 </p>
               </div>
 
-              {/* Tabs list selectors */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5 mb-8">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isSelected = activeTab === tab.id;
-                  return (
-                    <motion.button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`flex flex-col items-center justify-center gap-2.5 py-4 px-3 rounded-2xl border font-bold text-[10px] uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-                        isSelected 
-                          ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 text-indigo-605 dark:text-indigo-400 shadow-sm ring-4 ring-indigo-500/10' 
-                          : 'border-slate-200 dark:border-slate-805 text-slate-400 dark:text-slate-500 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 hover:text-slate-650 dark:hover:text-slate-300'
-                      }`}
-                    >
-                      <Icon className={`h-5 w-5 ${isSelected ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                      <span className="text-center">{tab.name}</span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-
-              {/* Form Input fields */}
-              <form onSubmit={handleAnalyze} className="space-y-6">
-                <div className="relative">
-                  {['text', 'email'].includes(activeTab) && (
-                    <textarea
-                      required
-                      rows={8}
-                      value={content}
-                      onChange={(e) => setContent(e.target.value)}
-                      placeholder={tabs.find((t) => t.id === activeTab)?.placeholder}
-                      className="w-full rounded-2xl border border-slate-205 dark:border-slate-800 p-5 text-sm text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900/60 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y min-h-[160px]"
-                    />
-                  )}
-
-                  {activeTab === 'url' && (
-                    <div className="relative">
-                      <input
-                        required
-                        type="text"
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        placeholder={tabs.find((t) => t.id === activeTab)?.placeholder}
-                        className="w-full rounded-2xl border border-slate-205 dark:border-slate-800 py-4 pl-12 pr-5 text-sm text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900/60 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                      />
-                      <Globe className="absolute left-4 top-4 h-5 w-5 text-slate-405 dark:text-slate-600" />
-                    </div>
-                  )}
-
-                  {activeTab === 'pdf' && (
-                    <FileUploader
-                      allowedType="pdf"
-                      maxSizeBytes={20 * 1024 * 1024} // 20MB
-                      onFileSelected={setSelectedFile}
-                      selectedFile={selectedFile}
-                      onClearFile={() => setSelectedFile(null)}
-                    />
-                  )}
-
-                  {activeTab === 'image' && (
-                    <FileUploader
-                      allowedType="image"
-                      maxSizeBytes={10 * 1024 * 1024} // 10MB
-                      onFileSelected={setSelectedFile}
-                      selectedFile={selectedFile}
-                      onClearFile={() => setSelectedFile(null)}
-                    />
-                  )}
-                </div>
-
-                <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800/80">
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex items-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-505 text-white font-bold text-sm px-6 py-3.5 shadow-lg shadow-indigo-600/15 dark:shadow-none transition-colors cursor-pointer"
+              {/* Submission Canvas */}
+              <Card className="p-0 overflow-hidden text-left">
+                {/* Tabs Menu */}
+                <div className="flex border-b border-border relative">
+                  <button 
+                    onClick={() => setActiveTab('link')}
+                    className={`flex-1 py-4 font-mono text-[13px] font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                      activeTab === 'link' ? 'text-brand' : 'text-text-secondary hover:bg-bg/50'
+                    }`}
                   >
-                    <Play className="h-4 w-4 fill-white stroke-none" />
-                    <span>Analyze Now</span>
-                  </motion.button>
+                    <LinkIcon className="h-4.5 w-4.5" />
+                    <span>Link</span>
+                    {activeTab === 'link' && <div className="absolute bottom-[-1px] left-0 w-full bg-brand h-[2px]"></div>}
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveTab('email')}
+                    className={`flex-1 py-4 font-mono text-[13px] font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer relative ${
+                      activeTab === 'email' ? 'text-brand' : 'text-text-secondary hover:bg-bg/50'
+                    }`}
+                  >
+                    <Mail className="h-4.5 w-4.5" />
+                    <span>Email Content</span>
+                    {activeTab === 'email' && <div className="absolute bottom-[-1px] left-0 w-full bg-brand h-[2px]"></div>}
+                  </button>
+
+                  <button 
+                    onClick={() => setActiveTab('document')}
+                    className={`flex-1 py-4 font-mono text-[13px] font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                      activeTab === 'document' ? 'text-brand' : 'text-text-secondary hover:bg-bg/50'
+                    }`}
+                  >
+                    <FileText className="h-4.5 w-4.5" />
+                    <span>Document Upload</span>
+                    {activeTab === 'document' && <div className="absolute bottom-[-1px] left-0 w-full bg-brand h-[2px]"></div>}
+                  </button>
                 </div>
-              </form>
+
+                {/* Content Area */}
+                <div className="p-8">
+                  {/* Email & Text Area Section */}
+                  {activeTab === 'email' && (
+                    <form onSubmit={handleAnalyze} className="space-y-6 text-left">
+                      <div className="relative group">
+                        <textarea 
+                          required
+                          value={content}
+                          onChange={(e) => setContent(e.target.value)}
+                          maxLength={5000}
+                          className="w-full h-80 bg-bg border border-border rounded-lg p-6 font-sans text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand transition-all placeholder:text-text-secondary/40 resize-none" 
+                          placeholder="Paste job description or email here..."
+                        />
+                        <div className="absolute bottom-4 right-4 flex items-center gap-3">
+                          <span className="font-mono text-[10px] text-text-secondary font-semibold">{content.length} / 5000 characters</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-4">
+                        <div className="flex items-center gap-4 text-text-secondary">
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-bg rounded-full border border-border">
+                            <span className="material-symbols-outlined text-[16px] text-brand">shield</span>
+                            <span className="font-mono text-[11px] font-bold">Privacy Mode Active</span>
+                          </div>
+                          <div className="flex items-center gap-2 px-3 py-1.5 bg-bg rounded-full border border-border">
+                            <span className="material-symbols-outlined text-[16px] text-brand">bolt</span>
+                            <span className="font-mono text-[11px] font-bold">Real-time Check</span>
+                          </div>
+                        </div>
+                        <PrimaryButton 
+                          type="submit"
+                          className="w-full md:w-auto px-8 py-3 text-sm"
+                        >
+                          <span>Verify Now</span>
+                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        </PrimaryButton>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Link Input Section */}
+                  {activeTab === 'link' && (
+                    <form onSubmit={handleAnalyze} className="space-y-6 py-8">
+                      <div className="relative text-left">
+                        <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary/40">link</span>
+                        <input 
+                          required
+                          value={content}
+                          onChange={(e) => setContent(e.target.value)}
+                          className="w-full pl-12 pr-4 py-4 bg-bg border border-border rounded-lg font-sans text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-brand focus:border-brand transition-all" 
+                          placeholder="https://linkedin.com/jobs/view/..." 
+                          type="text"
+                        />
+                      </div>
+                      <p className="text-center font-mono text-[11px] text-text-secondary font-semibold">Paste the URL of a LinkedIn, Indeed, or company job posting.</p>
+                      <PrimaryButton 
+                        type="submit"
+                        className="w-full py-3"
+                      >
+                        Analyze Link
+                      </PrimaryButton>
+                    </form>
+                  )}
+
+                  {/* Document Upload Section */}
+                  {activeTab === 'document' && (
+                    <form onSubmit={handleAnalyze} className="space-y-6">
+                      <FileUploader
+                        allowedType="pdf"
+                        maxSizeBytes={10 * 1024 * 1024} // 10MB
+                        onFileSelected={setSelectedFile}
+                        selectedFile={selectedFile}
+                        onClearFile={() => setSelectedFile(null)}
+                      />
+                      
+                      <div className="flex justify-end pt-4 border-t border-border">
+                        <PrimaryButton 
+                          type="submit"
+                          className="w-full md:w-auto px-8 py-3 text-sm"
+                        >
+                          Verify Document
+                        </PrimaryButton>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </Card>
+
+              {/* Recent Analysis Preview */}
+              <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                <Card className="col-span-1 md:col-span-2">
+                  <div className="flex justify-between items-center mb-6">
+                    <h4 className="font-mono text-[11px] font-bold text-text-secondary tracking-widest uppercase">Analysis Insights</h4>
+                    <span className="material-symbols-outlined text-text-secondary/40">info</span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 p-3 bg-bg rounded-lg border border-border">
+                      <div className="w-2 h-10 bg-danger rounded-full shrink-0"></div>
+                      <div>
+                        <p className="text-sm font-bold text-text-primary">Phishing Link Detected</p>
+                        <p className="font-mono text-[10px] text-text-secondary mt-0.5">High-risk domain identified in last 24h</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-3 bg-bg rounded-lg border border-border">
+                      <div className="w-2 h-10 bg-success rounded-full shrink-0"></div>
+                      <div>
+                        <p className="text-sm font-bold text-text-primary">Verified Corporate Recruiter</p>
+                        <p className="font-mono text-[10px] text-text-secondary mt-0.5">Domain matched with official registry</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="col-span-1 flex flex-col items-center justify-center text-center">
+                  <div className="relative w-24 h-24 mb-4 select-none">
+                    <svg className="w-full h-full transform -rotate-90">
+                      <circle className="text-border" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" strokeWidth="4"></circle>
+                      <circle className="text-brand progress-ring__circle" cx="48" cy="48" fill="transparent" r="40" stroke="currentColor" strokeDasharray="251.2" strokeDashoffset="62.8" strokeWidth="4"></circle>
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center font-sans text-lg font-bold text-text-primary">75%</div>
+                  </div>
+                  <p className="font-mono text-[11px] text-brand font-bold mb-0.5">Safety Index</p>
+                  <p className="font-mono text-[10px] text-text-secondary font-semibold">Community trust score</p>
+                </Card>
+              </div>
             </motion.div>
           ) : (
             // Processing Screen
@@ -277,22 +351,20 @@ const NewAnalysisPage = () => {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="rounded-2xl bg-white dark:bg-slate-900 p-12 shadow-sm border border-slate-200/80 dark:border-slate-800/80 flex flex-col items-center justify-center text-center space-y-8 min-h-[400px] transition-colors duration-300"
+              className="rounded-2xl bg-card p-12 shadow-sm border border-border flex flex-col items-center justify-center text-center space-y-8 min-h-[400px]"
             >
-              {/* Spinner */}
               <div className="relative flex items-center justify-center">
-                <div className="h-20 w-20 animate-spin rounded-full border-4 border-slate-100 dark:border-slate-800 border-t-indigo-600"></div>
+                <div className="h-20 w-20 animate-spin rounded-full border-4 border-border border-t-brand"></div>
                 <div className="absolute h-10 w-10 flex items-center justify-center">
-                  <ShieldAlert className="h-6 w-6 text-indigo-600 animate-pulse" />
+                  <ShieldAlert className="h-6 w-6 text-brand animate-pulse" />
                 </div>
               </div>
 
-              {/* Progress Text */}
               <div className="space-y-4 max-w-md w-full">
-                <h3 className="text-lg font-bold text-slate-850 dark:text-slate-100">Job Scam Check in Progress</h3>
-                <div className="h-2 w-64 bg-slate-100 dark:bg-slate-800 rounded-full mx-auto overflow-hidden relative">
+                <h3 className="font-sans text-lg font-bold text-text-primary">Job Scam Check in Progress</h3>
+                <div className="h-2 w-64 bg-bg border border-border rounded-full mx-auto overflow-hidden relative">
                   <motion.div 
-                    className="h-full bg-indigo-605 rounded-full absolute left-0 top-0"
+                    className="h-full bg-brand rounded-full absolute left-0 top-0"
                     initial={{ width: '5%' }}
                     animate={{ width: `${(progressStep + 1) * (100 / pipelineSteps.length)}%` }}
                     transition={{ duration: 1.2 }}
@@ -305,15 +377,15 @@ const NewAnalysisPage = () => {
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className="text-xs text-slate-500 dark:text-slate-400 font-semibold italic min-h-[16px]"
+                    className="font-mono text-[10px] text-text-secondary italic min-h-[16px] font-bold"
                   >
                     {pipelineSteps[progressStep]}
                   </motion.p>
                 </AnimatePresence>
               </div>
 
-              <div className="text-xs text-slate-400 dark:text-slate-500 font-medium leading-relaxed max-w-sm pt-4 border-t border-slate-100 dark:border-slate-800">
-                Please keep this tab open. The multi-signal scanner runs asynchronously to query domains and perform scoring checks.
+              <div className="font-mono text-[10px] text-text-secondary font-bold leading-relaxed max-w-sm pt-4 border-t border-border">
+                Please keep this tab open. The multi-signal scanner runs checks asynchronously to query domains and perform scoring.
               </div>
             </motion.div>
           )}

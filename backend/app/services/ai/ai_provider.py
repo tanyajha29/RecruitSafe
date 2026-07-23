@@ -24,6 +24,13 @@ class AIService(ABC):
         """
         pass
 
+    @abstractmethod
+    async def extract_missing_fields(self, text: str, missing_fields: List[str]) -> Dict[str, str]:
+        """
+        Uses AI to extract values for missing fields from the job description text.
+        """
+        pass
+
 class AIFactory:
     """
     Factory to dynamically resolve and cache AI provider instances based on configuration.
@@ -102,6 +109,10 @@ class AIProxy(AIService):
             logger.warning(f"Cache save failed in AIProxy: {e}")
 
         return result
+
+    async def extract_missing_fields(self, text: str, missing_fields: List[str]) -> Dict[str, str]:
+        provider = AIFactory.get_provider()
+        return await provider.extract_missing_fields(text, missing_fields)
 
 # Export a single global proxy instance that other services can import directly
 ai_service = AIProxy()

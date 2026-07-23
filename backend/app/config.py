@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_REQUESTS_PER_HOUR: int = 100
 
+    # ML Model Settings
+    ML_MODEL_PATH: str = "app/services/ai/recruitsafe_xgb.pkl"
+    ML_VECTORIZER_PATH: str = "app/services/ai/recruitsafe_vectorizer.pkl"
+    ML_METADATA_PATH: str = "app/services/ai/metadata.json"
+    ML_THRESHOLD: float = 0.50
+
     # Pydantic Settings Configuration
     model_config = SettingsConfigDict(
         env_file=".env",

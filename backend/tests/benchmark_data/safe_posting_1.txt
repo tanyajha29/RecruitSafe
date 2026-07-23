@@ -1,0 +1,24 @@
+Position: Senior Software Engineer
+Company: InnovateTech Solutions
+Location: Bangalore, India (Hybrid)
+
+About Us:
+InnovateTech is a leading provider of cloud analytics services. We value transparency, high-quality code, and work-life balance.
+
+Job Description:
+We are looking for a Senior Software Engineer to build scalable backend microservices. You will collaborate with our frontend developers, product managers, and site reliability engineers.
+
+Requirements:
+- 5+ years of software development experience with Python, Go, or Java.
+- Experience building RESTful APIs using FastAPI or Express.
+- Strong knowledge of PostgreSQL, Redis, and Docker.
+- Excellent communication skills.
+
+Benefits:
+- Competitive salary range: INR 18,000,000 - 25,000,000 per annum.
+- Comprehensive health insurance.
+- Voluntary training courses and certification sponsorships are available to support your career growth.
+- Standard corporate hiring process: 3 rounds of technical interviews. No upfront fees are ever requested.
+
+Contact:
+Apply directly on our website at https://innovatetech.com/careers or email careers@innovatetech.com.

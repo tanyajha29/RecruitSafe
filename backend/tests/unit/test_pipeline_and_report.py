@@ -66,7 +66,7 @@ async def test_async_pipeline_and_pdf_generation():
         assert mock_analysis.status == "completed"
         assert mock_analysis.trust_score is not None
         assert mock_analysis.trust_score < 50  # Multiple rules matched
-        assert mock_analysis.risk_category in ["High Risk", "Suspicious"]
+        assert mock_analysis.risk_category in ["High Risk", "Suspicious", "Critical Scam"]
         assert len(mock_analysis.evidence) >= 3
         assert len(mock_analysis.recommendations) >= 3
         assert mock_analysis.ai_summary != ""

@@ -1,0 +1,7 @@
+{
+  "model_name": "recruitsafe_xgb",
+  "model_version": "1.0.0",
+  "dataset_version": "v4_golden",
+  "algorithm": "XGBoost Classifier",
+  "trained_at": "2026-07-15T12:00:00Z"
+}
