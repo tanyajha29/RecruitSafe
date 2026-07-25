@@ -70,8 +70,11 @@ graph TD
     Verdict --> Output[7. Dashboard / PDF Report]
 ```
 
-### 🖼️ Platform Dashboard Preview
-*(Screenshot Placeholder: platforms_dashboard_view.png — Shows the main dashboard, past job scanning histories, and active threat notifications)*
+### 🖼️ Platform Previews
+
+| Scan Job Description | Dashboard View | Analysis Details | History Log |
+| :---: | :---: | :---: | :---: |
+| ![Scan Job](docs/Scan.png) | ![Platform Dashboard](docs/Dashboard.png) | ![Analysis Details](docs/AnalysisDetail.png) | ![Analysis History](docs/AnalysisHistory.png) |
 
 ---
 

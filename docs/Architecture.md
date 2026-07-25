@@ -1,102 +1,294 @@
-# RecruitSafe - System Architecture Documentation
-
-This document describes the high-level system architecture, component design, pipelines, database mappings, and security implementations of RecruitSafe.
+# RecruitSafe — System Architecture Documentation
 
 ---
 
-## 🏛️ 1. High-Level Architecture Overview
+## 📖 Table of Contents
 
-RecruitSafe uses a **Hybrid Decision Intelligence Architecture** that merges deterministic rule evaluations, external footprints checks, and machine learning models to classify and explain job recruitment threats.
+1. [Intended Audience](#-intended-audience)
+2. [High-Level Architecture](#-high-level-architecture)
+3. [Layered Architecture](#-layered-architecture)
+4. [Component Orchestration & Lifecycle](#-component-orchestration--lifecycle)
+5. [Pipeline Orchestrator](#-pipeline-orchestrator)
+6. [Canonical Extraction Pipeline](#-canonical-extraction-pipeline)
+7. [Context-Aware Rule Engine](#-context-aware-rule-engine)
+8. [Verification Engine](#-verification-engine)
+9. [Machine Learning Pipeline](#-machine-learning-pipeline)
+10. [Decision Fusion Engine](#-decision-fusion-engine)
+11. [Database Architecture](#-database-architecture)
+12. [API Request Lifecycle](#-api-request-lifecycle)
+13. [Deployment Topology](#-deployment-topology)
+14. [Configuration Architecture](#-configuration-architecture)
+15. [Fault Tolerance & Resiliency](#-fault-tolerance--resiliency)
+16. [Explainability Features](#-explainability-features)
+17. [Future Architecture Extensions](#-future-architecture-extensions)
+18. [📚 Documentation Navigation](#-documentation-navigation)
+
+---
+
+## 🎯 Intended Audience
+
+This document is designed for **technical architects**, **developers**, and **contributors** wanting to understand the RecruitSafe internal pipelines, component boundaries, and security architectures.
+
+---
+
+## 🏛️ High-Level Architecture
+
+RecruitSafe implements a **Hybrid Decision Intelligence Model** that fuses deterministic rules, active server footprint verifications, and machine learning models to assess job recruitment risks. 
 
 ```mermaid
 graph TD
-    A[Job Posting Document / Text] --> B[Canonical Extraction Pipeline]
-    B --> C[Canonical Entity Schema]
-    C --> D[Rule Engine Pipeline]
-    C --> E[Verification Engine footprints]
-    D --> F[Rule Engine scam Index]
-    E --> G[Verification footprint Score]
-    A --> H[XGBoost ML Content Classifier]
-    H --> I[ML Content Score]
-    F --> J[Decision Fusion Engine]
-    G --> J
-    I --> J
-    J --> K[Composite Verdict & explainable Report]
+    Job[Job Posting Description] --> Extraction[Canonical Extraction]
+    Extraction --> Rules[Context-Aware Rules]
+    Extraction --> Verification[Footprint Verification]
+    Job --> ML[XGBoost Classifier]
+    
+    Rules --> Fusion[Decision Fusion Engine]
+    Verification --> Fusion
+    ML --> Fusion
+    
+    Fusion --> Verdict[Composite Verdict & Risk Score]
 ```
 
 ---
 
-## ⚙️ 2. Component Design & Pipelines
+## 🥞 Layered Architecture
 
-### A. Canonical Extraction Pipeline
-Separates extraction, normalization, and validation:
-1. **Raw Extractor**: Processes the job description text and isolates company names, website links, email domains, salary values, and contact details.
-2. **Normalizer**: Standardizes values (e.g. mapping domains to lower case, cleaning phone numbers, matching currency formatting).
-3. **Validator**: Asserts value formats against schema rules.
-4. **Canonical Entity Schema**: Outputs a strongly typed metadata package (mapping 31 supported entities).
+RecruitSafe isolates concerns using a standard six-layer architectural model:
+
+| Layer | Component | Core Technologies | Primary Responsibility |
+|-------|-----------|-------------------|------------------------|
+| **Presentation** | React SPA | React, Vite, CSS | Renders scanning screens, trust scores, and verifications. |
+| **API** | REST Endpoints | FastAPI, Uvicorn | Routing, JWT token validations, CORS, rate limits. |
+| **Pipeline** | Orchestrator | Python Asyncio | Drives extraction, rule matching, verifications, and ML scans. |
+| **AI** | Engines & Models | spaCy, XGBoost, TF-IDF | Text vectors, syntax patterns, intent classification. |
+| **Persistence** | MongoDB | MongoDB, Beanie ODM | Stores analysis summaries, audits, and user documents. |
+| **Infrastructure** | Environment / PDF | OS, ReportLab | Drives runtime configurations and PDF generation. |
+
+---
+
+## ⚙️ Component Orchestration & Lifecycle
+
+The platform components orchestrate evaluations sequentially through the backend processing layers:
+
+```mermaid
+graph TD
+    A[React Client] -->|POST /api/analyze| B[FastAPI Controller]
+    B -->|Trigger| C[Pipeline Orchestrator]
+    C -->|Extract| D[Canonical Extractor]
+    C -->|Evaluate| E[Context-Aware Rule Engine]
+    C -->|Audit| F[Verification Engine]
+    C -->|Score| G[ML Content Service]
+    C -->|Combine| H[Decision Fusion Engine]
+    H -->|Log| I[MongoDB]
+    I -->|Return JSON| B
+    B -->|Render UI| A
+```
+
+---
+
+## 🚂 Pipeline Orchestrator
+
+The `PipelineOrchestrator` (`backend/app/services/pipeline_orchestrator.py`) acts as the state manager and runner for the verification pipeline:
+* **Execution Order**: Starts with text extraction, continues with parallel rule matching and active web verification lookups, runs the ML classifier, and finishes at the Decision Fusion Engine.
+* **Failure Handling**: Handles individual task failures gracefully. If web verification times out or DNS lookups fail, default unverified states are passed to the Fusion Engine rather than crashing the pipeline.
+* **Persistence**: Automatically logs the complete run, metrics, and intermediate indicators to MongoDB under a single transaction.
+
+---
+
+## 📥 Canonical Extraction Pipeline
+
+The extraction pipeline decouples raw metadata parsing from formatting and validation:
+1. **Raw Extractor**: Parses names, emails, salaries, locations, and website strings.
+2. **Normalizer**: Cleans fields (e.g. converting domains to lowercase, standardizing phone structures).
+3. **Validator**: Asserts formatting schemas (e.g. email patterns).
+4. **Output**: Produces a strongly typed canonical entity package.
 
 ```mermaid
 sequenceDiagram
-    participant Doc as Job Details
+    participant JobText as Job Details
     participant Raw as Raw Extractor
     participant Norm as Normalizer
     participant Val as Validator
-    participant Canon as Canonical Schema
-    Doc->>Raw: Extract metadata
-    Raw->>Norm: Clean raw entities
-    Norm->>Val: Assert schemas
-    Val->>Canon: Final Canonical Output
+    participant Canon as Canonical Package
+    
+    JobText->>Raw: Submit Description
+    Raw->>Norm: Parse raw variables
+    Norm->>Val: Clean & normalize values
+    Val->>Canon: Validate schema structure
 ```
 
-### B. Context-Aware Rule Engine
-Evaluates 16 keyword-based regular expressions and runs spaCy context evaluations on context-aware rules:
-* **spaCy Pipeline**: Single-loaded model analyzing sentence boundaries and POS dependencies.
-* **Intent Classifier**: Maps surrounding text into semantic intents (e.g. `MANDATORY_PAYMENT`, `OPTIONAL_TRAINING`, `COMPANY_REIMBURSEMENT`).
-* **Severity Mapping**: Maps intents to configurable severity parameters (`severity_config.json`).
-* **Score Mapping**: Resolves severity to dynamic points deductions (`score_config.json`).
+---
 
-### C. Verification Engine
-* **Website Verifier**: Validates DNS reachable status, resolves HTTPS redirects, verifies SSL certificates, and extracts WHOIS domain age.
-* **Company Verifier**: Crawler checks. Marks signals as `✓ Verified`, `⚠ Missing` (inspected but absent), or `? Unknown` (unreachable/lookup failures).
+## 🧠 Context-Aware Rule Engine
 
-### D. ML Content Service
-* **Model**: XGBoost classifier trained on text vectors.
-* **Vectorizer**: TF-IDF vectorizer mapping text tokens into float vectors.
-* **Metadata**: Accompanying `metadata.json` exposing versioning data. Exposes lazy loading and thread safety protections.
+This engine upgrades simple keyword matching to linguistic context analysis:
+* **spaCy Pipeline**: A shared singleton `NLPService` parses tokens, parts of speech (POS), and syntax trees.
+* **Intent Classifier**: Semantically analyzes modifiers and dependencies (e.g., classifying a payment phrase as `MANDATORY_PAYMENT` or `COMPANY_REIMBURSEMENT`).
+* **Dynamic Severity**: Intent maps are evaluated against configurations (`severity_config.json` and `score_config.json`) to assign dynamic point deductions.
 
-### E. Decision Fusion Engine
-Combines the normalized scores using configurable weights:
+```mermaid
+graph LR
+    Regex[Regex Match] --> spaCy[spaCy Singleton]
+    spaCy --> Intent[Intent Classifier]
+    Intent --> Config[Severity Config JSONs]
+    Config --> Score[Dynamic Score Deduction]
+```
+
+---
+
+## 🌐 Verification Engine
+
+Verifies external domain presence and infrastructure health:
+* **Company Website**: Validates DNS routing and redirects.
+* **SSL & HTTPS**: Checks certificate integrity and validity.
+* **WHOIS**: Queries registration status to calculate domain age.
+* **Corporate Email**: Assesses if contact emails match registered corporate domains or use public/disposable hosts.
+* **Careers Page & Policies**: Crawls and validates links for legal verification documents.
+
+---
+
+## 🤖 Machine Learning Pipeline
+
+Analyzes the structural and linguistic similarity of listing content to historical scam datasets:
+* **TF-IDF Vectorizer**: Vectorizes job descriptions. Loaded lazily to optimize start times.
+* **XGBoost Classifier**: Predicts listing scam probability.
+* **Preloading & Thread Safety**: Uses a `threading.Lock()` during preloading to ensure concurrent requests share the same loaded model safely.
+* **Model Versioning**: Tracks model version, name, and metrics dynamically via an accompanying `metadata.json`.
+
+---
+
+## 🎛️ Decision Fusion Engine
+
+Calculates the final composite safety verdict by weighting inputs dynamically:
 $$Score_{composite} = (W_{rules} \times Score_{rules}) + (W_{verif} \times Score_{verif}) + (W_{ml} \times Score_{ml})$$
-* **Config**: Dynamically loaded from `fusion_config.json`.
-* **Verdict Resolver**: Resolves final risk verdict (`SAFE`, `SUSPICIOUS`, `HIGH_RISK`, `SCAM`) and confidence breakdown.
+
+* **Configuration**: Fusing weights and score thresholds are loaded at runtime from `fusion_config.json`.
+* **Verdict Resolution**: Maps scores to safety tiers (`SAFE`, `SUSPICIOUS`, `HIGH_RISK`, `SCAM`).
+* **Confidence Rating**: Computes analysis completeness based on available inputs.
 
 ---
 
-## 🗄️ 3. Database Architecture
+## 🗄️ Database Architecture
 
-MongoDB is managed via **Beanie ODM** using the following core schemas:
+RecruitSafe uses MongoDB with Beanie ODM. The collections schema is as follows:
 
-* **User Document (`User`)**:
-  - `email`: Indexed string (indexed unique).
-  - `hashed_password`: String.
-  - `role`: String (`user`, `admin`).
-  - `created_at`: Datetime.
+```mermaid
+erDiagram
+    User {
+        ObjectId id PK
+        string email
+        string hashed_password
+        string role
+        datetime created_at
+    }
+    Analysis {
+        ObjectId id PK
+        ObjectId user_id FK
+        string job_text
+        object canonical_entities
+        array rule_results
+        object verification_status
+        float ml_score
+        object fusion_result
+        datetime created_at
+    }
+    User ||--o{ Analysis : owns
+```
 
-* **Analysis Result Document (`Analysis`)**:
-  - `user_id`: Link to User Document.
-  - `job_text`: Raw input.
-  - `canonical_entities`: Key-value map of 31 entities.
-  - `rule_results`: List of triggered evidence entries.
-  - `verification_results`: Footprints statuses.
-  - `ml_score`: Float.
-  - `fusion_result`: Composite score, verdict, and explainability breakdowns.
-  - `created_at`: Datetime.
+* **Indexes**: Unique index on `User.email` and search indexes on `Analysis.created_at` and `Analysis.user_id`.
 
 ---
 
-## 🔒 4. Security Architecture
+## 🔄 API Request Lifecycle
 
-1. **Authentication**: JWT-based access tokens with bcrypt password hashing.
-2. **Access Control**: Role-based routing (Admin routes restricted).
-3. **Data Sanitization**: Bleach-based input sanitization on all text submissions.
-4. **Environment Controls**: Env variables clamp secret tokens, cors origin lists, and third-party API keys (Groq).
+The flow of an analysis request from client to database:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    Client ->> FastAPI: POST /api/analyze
+    FastAPI ->> Pipeline: Initialize Task
+    Pipeline ->> Extractor: Run Extraction
+    Pipeline ->> Rules: Assess Context Intents
+    Pipeline ->> Verification: Run active DNS/SSL audits
+    Pipeline ->> ML: Vectorize & Classify
+    Pipeline ->> Fusion: Combine Weights
+    Pipeline ->> DB: Save Analysis Record
+    DB -->> Pipeline: Record Saved
+    Pipeline -->> FastAPI: Return Composite Result
+    FastAPI -->> Client: Render UI Dashboard
+```
+
+---
+
+## 🚏 Deployment Topology
+
+The physical runtime topology of RecruitSafe components:
+
+```mermaid
+graph TD
+    Browser[Client Browser] -->|React Single Page App| Nginx[NGINX Reverse Proxy]
+    Nginx -->|Route Request| FastAPI[FastAPI Container]
+    FastAPI -->|NLP Queries| spaCy[spaCy Engine]
+    FastAPI -->|Model Queries| XGBoost[XGBoost Service]
+    FastAPI -->|Query/Save Data| MongoDB[(MongoDB Database)]
+    FastAPI -->|External Audits| Web[Web / WHOIS Registries]
+```
+
+---
+
+## 🛠️ Configuration Architecture
+
+RecruitSafe behavior is driven by decoupled JSON configurations:
+
+```mermaid
+graph TD
+    rules_config.json[rules_config.json] --> pipeline[Orchestrator Pipeline]
+    severity_config.json[severity_config.json] --> Intent[Intent Classifier]
+    score_config.json[score_config.json] --> Intent
+    fusion_config.json[fusion_config.json] --> Fusion[Decision Fusion Engine]
+    metadata.json[metadata.json] --> ML[ML Content Service]
+```
+
+---
+
+## 🛡️ Fault Tolerance & Resiliency
+
+To remain reliable in production, RecruitSafe is built with specific fallback mechanisms:
+* **ML Service Failure**: If vectorizer or model binaries fail to load, the ML component returns a `0.5` neutral score to the Decision Fusion engine, allowing analysis to continue.
+* **Verification Engine Timeouts**: Individual network checks are wrapped in strict asyncio timeouts (default: `5.0` seconds) to prevent frozen requests.
+* **Rule Engine Fallback**: In case of NLP tokenizer failures, matching reverts to basic regular expression match spans.
+
+---
+
+## 🔍 Explainability Features
+
+A critical goal of the architecture is transparency:
+* **Why List**: Explains specifically which components (rules, verification, or ML classification) contributed to a reduced Trust Score.
+* **Evidence Log**: Displays matched phrases, extracted context windows, classified intents, and verification failures directly on the UI dashboard and generated PDF reports.
+
+---
+
+## 🗺️ Future Architecture Extensions
+
+* **Browser Extension**: Planned companion extension to scan LinkedIn, Indeed, and glassdoor job postings directly.
+* **Distributed Threat Intelligence Registry**: Shared database of scam templates and fraudulent recruiter contact domains.
+* **Multilingual NLP Support**: Adding multilingual tokenization mapping support for European and Asian job boards.
+
+---
+
+## 📚 Documentation Navigation
+
+| Document | Target Audience | Key Contents |
+|----------|-----------------|--------------|
+| [Root README](../README.md) | Everyone | Project pitch, technology stack, previews, and quick start. |
+| [Setup Guide](Setup.md) | Developers, DevOps | Local configuration, dependencies, and environment files. |
+| [API Specifications](API.md) | Frontend Engineers | Complete route details, payload schemas, and response maps. |
+| [Developer Guide](DeveloperGuide.md) | Software Engineers | Pipeline extensions, adding custom rules, and testing guidelines. |
+| [User Guide](UserGuide.md) | Job Seekers, Recruiters | Interpreting threat indicators and downloading PDF reports. |
+| [Database Schema](Database.md) | DBAs, Backend Devs | Collection definitions, indexes, and Beanie ODM setup. |
+| [Configuration Reference](Configuration.md) | DevOps, System Operators | Behavior parameter configurations and score maps. |
+| [Security Architecture](Security.md) | Security Auditors | Threat models, JWT encryption, and sanitization parameters. |
+| [Testing Guide](Testing.md) | QA Engineers, Developers | pytest structures, validation boundary targets, and unit tests. |
+| [Deployment Guide](Deployment.md) | DevOps, SREs | Production setups, Docker orchestration, and reverse proxies. |
+| [Future Roadmap](Roadmap.md) | Product Managers, Visitors | Planned release timeline and architectural expansions. |
