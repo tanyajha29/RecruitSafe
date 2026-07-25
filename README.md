@@ -1,95 +1,158 @@
-# RecruitSafe - Hybrid Decision Intelligence Platform
+# RecruitSafe — AI-Powered Job Scam Detection Platform
 
-RecruitSafe is a production-grade, multi-layered job posting audit and scam detection platform. By combining deterministic regular expression scanners, deep-crawling infrastructure footprints verifiers, spaCy-based natural language processing context models, and XGBoost machine learning text classifiers, RecruitSafe provides clear threat verdicts and mitigation directions for job seekers.
+[![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19.0-61DAFB.svg)](https://react.dev/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-8.0-47A248.svg)](https://www.mongodb.com/)
+[![spaCy](https://img.shields.io/badge/spaCy-3.8-09A3D5.svg)](https://spacy.io/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-2.1-FF6F20.svg)](https://xgboost.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+RecruitSafe is an advanced, multi-layered job posting verification and scam detection platform. By combining regular expression rule matching, deep metadata extraction, external footprint checks, natural language processing context models, and machine learning classifiers, RecruitSafe helps job seekers identify deceptive job offers and fraudulent recruiters.
 
 ---
 
-## 🌟 Key Features
+## 📖 Table of Contents
 
-* **3-Layer Canonical Extraction**: Decouples extraction, normalization, and validation rules to map 31 distinct metadata points.
-* **Context-Aware Rule Engine**: Integrates regular expression keyword matchers with a spaCy NLP pipeline to distinguish genuine offers from phishing patterns (e.g. voluntary training vs. mandatory registration fees).
-* **Deep footprints Verification**: Audits DNS reachability, resolves HTTPS/SSL certificate issues, parses WHOIS records to check domain age, and validates external company crawling footprints.
-* **Machine Learning Analysis**: Employs a thread-safe, lazy-loaded XGBoost model and TF-IDF text vectorization.
-* **Calibrated Decision Fusion Scorer**: Merges engine results using weights from configuration maps to issue verdicts (`SAFE`, `SUSPICIOUS`, `HIGH_RISK`, `SCAM`).
-* **Visual PDF Reporting**: Generates automated, ReportLab-based PDF audits summarizing confidence levels and safety metrics.
+1. [Intended Audience](#-intended-audience)
+2. [Project Overview](#-project-overview)
+3. [Key Features](#-key-features)
+4. [High-Level Workflow & Architecture](#-high-level-workflow--architecture)
+5. [Technology Stack](#-technology-stack)
+6. [Quick Start](#-quick-start)
+7. [Repository Structure](#-repository-structure)
+8. [📚 Documentation Navigation](#-documentation-navigation)
+
+---
+
+## 🎯 Intended Audience
+
+This document is designed for all project visitors, including **recruiters**, **first-time GitHub visitors**, **open-source contributors**, and **software developers** seeking a high-level understanding of the platform.
+
+---
+
+## 🔍 Project Overview
+
+Job seekers are increasingly targeted by sophisticated employment scams (e.g. upfront training fees, identity theft phishing, or fake companies). RecruitSafe provides a commercial-grade cybersecurity solution that parses job descriptions, audits online registry records, scores communication intents, and runs predictive machine learning models to assign a clear safety verdict.
+
+> [!NOTE]
+> RecruitSafe is designed to estimate recruitment risk using evidence-based scores. It is a risk-assessment tool, not a legal certifier.
+
+---
+
+## ✨ Key Features
+
+* **Canonical Extraction**: Identifies and isolates 31 distinct metadata parameters (e.g., salary, recruiter email, and company details) from job postings.
+* **Context-Aware Rule Engine**: Employs spaCy token dependency parsing to differentiate between benign and deceptive intents (e.g., company reimbursement vs. mandatory training fee scams).
+* **Live Footprint Verification**: Performs automated audits of domain registry status, DNS reachability, SSL certificate validity, and WHOIS domain age.
+* **Machine Learning Classifier**: Utilizes an XGBoost model trained on text vectors to predict job listing legitimacy.
+* **Hybrid Decision Fusion**: Fuses rule deductions, verification scores, and ML predictions into a single Trust Score.
+* **Professional PDF Audits**: Compiles comprehensive job verification reports for immediate download.
+
+---
+
+## 📐 High-Level Workflow & Architecture
+
+RecruitSafe processes job descriptions through a modular pipeline. Below is the high-level data flow:
+
+```mermaid
+graph TD
+    Job[Job Posting Details] --> Ext[1. Canonical Extraction]
+    Ext --> Rules[2. Context-Aware Rules]
+    Ext --> Verif[3. Footprint Verification]
+    Job --> ML[4. ML Content Classifier]
+    
+    Rules --> Fusion[5. Decision Fusion Engine]
+    Verif --> Fusion
+    ML --> Fusion
+    
+    Fusion --> Verdict[6. Safety Verdict & Score]
+    Verdict --> Output[7. Dashboard / PDF Report]
+```
+
+### 🖼️ Platform Dashboard Preview
+*(Screenshot Placeholder: platforms_dashboard_view.png — Shows the main dashboard, past job scanning histories, and active threat notifications)*
 
 ---
 
 ## 💻 Technology Stack
 
-* **FastAPI**: Backend web framework.
-* **Beanie ODM & Motor**: MongoDB ODM mapping.
-* **spaCy**: NLP syntactic token and dependency parsing.
-* **scikit-learn & XGBoost**: ML vectorization and predictions.
-* **ReportLab**: PDF report canvas rendering.
-* **React, Vite, & Tailwind CSS**: Frontend dashboard UI.
+* **Frontend**: React, Vite, Vanilla CSS.
+* **Backend**: FastAPI (Python).
+* **Database**: MongoDB (Beanie ODM).
+* **NLP**: spaCy (`en_core_web_sm` pipeline).
+* **Machine Learning**: XGBoost, Scikit-learn (TF-IDF vectorizer).
+* **Reports**: ReportLab PDF generator.
 
 ---
 
-## 📂 System Architecture Overview
+## 🚀 Quick Start
 
-```
-                          [ Job Posting Text ]
-                                   │
-                     ┌─────────────┴─────────────┐
-                     ▼                           ▼
-        [ Canonical Extractor ]         [ XGBoost ML Content Classifier ]
-                     │                           │
-                     ▼                           ▼
-        [ Context-Aware Rules ]           [ Content Score ]
-                     │                           │
-                     ▼                           │
-        [ Verification footprints ]              │
-                     │                           │
-                     └─────────────┬─────────────┘
-                                   ▼
-                       [ Decision Fusion Engine ]
-                                   │
-                                   ▼
-                     [ Final Verdict & PDF Report ]
+### 1. Backend Setup
+Navigate to the `backend/` directory, create a virtual environment, and install dependencies:
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate  # On macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
+python -m spacy download en_core_web_sm
 ```
 
-Detailed architectural breakdowns can be found in [docs/Architecture.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/Architecture.md).
+Set up your `.env` configuration:
+```env
+MONGODB_URL=mongodb://localhost:27017/recruitsafe
+SECRET_KEY=your_jwt_secret_key_here
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+Start the FastAPI application:
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### 2. Frontend Setup
+Navigate to the `frontend/` directory, install packages, and start the development server:
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+The application will be accessible at:
+* **Frontend**: `http://localhost:5173/`
+* **API Documentation (Swagger UI)**: `http://127.0.0.1:8000/docs`
 
 ---
 
-## 🚀 Getting Started
+## 📂 Repository Structure
 
-### Local Setup
-1. Clone the repository and navigate to backend directory. Create virtual env and install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   python -m spacy download en_core_web_sm
-   ```
-2. Set up your local environment file (`.env`):
-   ```env
-   MONGODB_URL=mongodb://localhost:27017/recruitsafe
-   SECRET_KEY=yoursecretkey
-   GROQ_API_KEY=yourkey
-   ```
-3. Boot the FastAPI server:
-   ```bash
-   python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-   ```
-4. Navigate to the frontend directory, install npm modules, and run the developer server:
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-Detailed installation steps are available in [docs/Setup.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/Setup.md).
+```text
+RecruitSafe/
+├── backend/            # FastAPI source code, ML model assets, configuration files
+├── docs/               # In-depth architectural, setup, and user guides
+├── frontend/           # React dashboard UI components
+├── LICENSE             # Project MIT License
+└── README.md           # Root landing page (this document)
+```
 
 ---
 
-## 📄 Project Guides
+## 📚 Documentation Navigation
 
-* **System Design & Sequence Flow**: [docs/Architecture.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/Architecture.md)
-* **REST API Endpoint Specifications**: [docs/API.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/API.md)
-* **Local Prerequisites & Setup**: [docs/Setup.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/Setup.md)
-* **End-User Application Manual**: [docs/UserGuide.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/UserGuide.md)
-* **Developer Customizations**: [docs/DeveloperGuide.md](file:///c:/Users/jhata/WEB-Projects/RecruitSafe/docs/DeveloperGuide.md)
+Explore specific guides for deeper technical details and workflows:
 
----
-
-## ⚖️ License
-Distributed under the MIT License. See `LICENSE` for details.
+| Document | Target Audience | Key Contents |
+|----------|-----------------|--------------|
+| [Setup Guide](docs/Setup.md) | Developers, DevOps | Step-by-step local install, DB setup, environment variables. |
+| [System Architecture](docs/Architecture.md) | Technical Architects | Layered model, pipeline orchestrator, data flow. |
+| [API Documentation](docs/API.md) | Frontend Engineers | REST endpoints, JWT authentication, JSON payloads. |
+| [Developer Guide](docs/DeveloperGuide.md) | Software Engineers | Coding standards, adding rules, extending verification. |
+| [User Guide](docs/UserGuide.md) | Recruiters, Job Seekers | Scanning jobs, interpreting scores, downloading PDFs. |
+| [Database Schema](docs/Database.md) | Backend Devs, DBAs | Collection definitions, compound indexing, Beanie ODM. |
+| [Configuration Reference](docs/Configuration.md) | DevOps, System Operators | Config JSON schemas for scores, weights, and rules. |
+| [Security Architecture](docs/Security.md) | Security Auditors | JWT validation, password hashing, input sanitization. |
+| [Testing Guide](docs/Testing.md) | QA Engineers, Developers | pytest tests, pipeline validation, regression boundary testing. |
+| [Deployment Guide](docs/Deployment.md) | DevOps, SREs | Docker, environment configurations, reverse proxies. |
+| [Future Roadmap](docs/Roadmap.md) | Product Managers, Visitors | Completed features, next releases, planned extensions. |
+| [Contributing Guide](CONTRIBUTING.md) | Contributors | Pull request process, issue formatting, coding standards. |
+| [Changelog](CHANGELOG.md) | All Users | Semantic version release history (V1 to V4). |

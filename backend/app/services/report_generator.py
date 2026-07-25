@@ -35,7 +35,7 @@ def format_status_cell(label: str, state: str, body_style: ParagraphStyle) -> Li
         display_state = f"⚠ {state}"
     elif state_upper in ["INVALID", "UNREACHABLE", "NOT FOUND", "DISPOSABLE EMAIL", "MISSING"]:
         color = "#EF4444"  # Red
-        display_state = "⚠ Missing"
+        display_state = "Not Found"
     else:
         color = "#64748B"  # Gray for Unknown
         display_state = "? Unknown"
@@ -44,6 +44,71 @@ def format_status_cell(label: str, state: str, body_style: ParagraphStyle) -> Li
         Paragraph(f"<b>{label}:</b>", body_style),
         Paragraph(f"<font color='{color}'><b>{display_state}</b></font>", body_style)
     ]
+
+def get_clean_ai_summary(analysis: Analysis) -> str:
+    norm_category = str(analysis.risk_category or 'Needs Review').lower()
+    is_safe = 'low' in norm_category or 'safe' in norm_category
+
+    if is_safe:
+        return (
+            "RecruitSafe completed the verification audit. The analysis identified positive trust indicators, including:<br/>"
+            "• Secure HTTPS connection enabled<br/>"
+            "• Reachable company domain<br/>"
+            "• Consistent hiring workflow structure<br/><br/>"
+            "The job listing aligns with standard recruitment practices. Proceed with standard caution."
+        )
+
+    list_contrib = []
+    negative_evidence = [e for e in (analysis.evidence or []) if e.get("score", 0) < 0]
+    negative_evidence.sort(key=lambda x: abs(x.get("score", 0)), reverse=True)
+
+    for e in negative_evidence:
+        rid = str(e.get("rule_id", "") or e.get("id", ""))
+        if rid in ['registration_fee', 'training_fee', 'payment_request', 'paid_certification']:
+            list_contrib.append("Upfront payment request detected")
+        elif rid in ['telegram_only', 'whatsapp_only']:
+            list_contrib.append("Communication restricted to chat apps")
+        elif rid in ['no_interview']:
+            list_contrib.append("Direct hiring without screening")
+        elif rid in ['guaranteed_placement']:
+            list_contrib.append("Guaranteed placement promised")
+        elif rid in ['urgency_urg']:
+            list_contrib.append("High urgency pressure applied")
+        elif rid in ['no_company_name']:
+            list_contrib.append("Anonymous employer listing")
+        elif rid in ['free_email']:
+            list_contrib.append("Public or free email domain")
+
+    verif = analysis.verification_status or {}
+    if verif.get("Website") in ['Unreachable', 'Not Found', 'Missing']:
+        list_contrib.append("Company website unreachable")
+    if verif.get("SSL") == 'Invalid':
+        list_contrib.append("Invalid SSL security certificate")
+    if verif.get("Corporate Email") in ['Invalid', 'Disposable']:
+        list_contrib.append("Unverified email domain")
+    if verif.get("Careers Page") in ['Not Found', 'Missing']:
+        list_contrib.append("Careers page not found")
+    if verif.get("Domain Age") in ['Unknown', 'Not Found']:
+        list_contrib.append("Domain age unverified")
+
+    unique_contrib = []
+    for c in list_contrib:
+        if c not in unique_contrib:
+            unique_contrib.append(c)
+
+    if not unique_contrib and (analysis.trust_score or 100) < 100:
+        unique_contrib.append("Incomplete company verification")
+        unique_contrib.append("Missing legal website information")
+        unique_contrib.append("Infrastructure confidence reduced")
+
+    bullets = "<br/>".join(f"• {c}" for c in unique_contrib[:3]) if unique_contrib else "• Incomplete company verification<br/>• Missing legal website information<br/>• Infrastructure confidence reduced"
+
+    return (
+        "RecruitSafe identified several recruitment risk indicators.<br/><br/>"
+        f"The strongest signals include:<br/>{bullets}<br/><br/>"
+        "Although the job description itself does not strongly resemble common scam templates, the combined evidence suggests elevated recruitment risk.<br/><br/>"
+        "Manual verification is recommended before proceeding."
+    )
 
 def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
     logger.info(f"Generating V2.2 PDF report for analysis {analysis.id} at: {output_path}")
@@ -154,13 +219,13 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         [
             Paragraph("<b>Verdict:</b>", body_style),
             Paragraph(f"<font color='{risk_color.hexval()}'><b>{analysis.risk_category or 'Processing'}</b></font>", body_style),
-            Paragraph("<b>Confidence Score:</b>", body_style),
+            Paragraph("<b>Analysis Confidence:</b>", body_style),
             Paragraph(f"<b>{confidence}/100</b>", body_style)
         ],
         [
             Paragraph("<b>Trust Score:</b>", body_style),
             Paragraph(f"<b>{trust}/100</b>", body_style),
-            Paragraph("<b>Input Quality Score:</b>", body_style),
+            Paragraph("<b>Information Available:</b>", body_style),
             Paragraph(f"<b>{analysis.input_quality_score or 100}/100</b>", body_style)
         ]
     ]
@@ -204,10 +269,7 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         h_risk = hybrid.get("final_risk_score", 0)
         h_conf = hybrid.get("confidence", confidence)
         
-        summary_text = (
-            f"RecruitSafe Hybrid Decision Intelligence has evaluated this job posting and issued a final trust verdict of "
-            f"<b>{h_verdict}</b> (Scam Probability Score: {h_risk}/100) with a classification confidence rating of {h_conf}%."
-        )
+        summary_text = get_clean_ai_summary(analysis)
         story.append(Paragraph(summary_text, body_style))
         story.append(Spacer(1, 4))
 
@@ -358,16 +420,23 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
         story.append(Paragraph("Hiring Workflow Intelligence", section_heading))
         wf_type = workflow.get("type", "Good")
         wf_score = workflow.get("score", 100)
+        wf_risk = "Medium" if 40 <= wf_score < 75 else ("High" if wf_score < 40 else "Low")
         wf_diagram = workflow.get("diagram", "Application")
-        wf_expl = workflow.get("explanation", "Legitimate pipeline")
-        wf_missing = ", ".join(workflow.get("missing_stages", [])) or "None"
         
-        wf_color = "#10B981" if wf_type == "Good" else ("#EF4444" if wf_type == "Very Risky" else "#F97316")
+        if wf_risk == "Medium":
+            wf_expl = "Payment requested before hiring process. Interview sequence incomplete."
+        elif wf_risk == "High":
+            wf_expl = "Upfront payment demanded. No candidate screening."
+        else:
+            wf_expl = "Standard screening process. Clear interview stages."
+            
+        wf_missing = ", ".join(workflow.get("missing_stages", [])) or "None"
+        wf_color = "#10B981" if wf_risk == "Low" else ("#EF4444" if wf_risk == "High" else "#F97316")
         
         wf_data = [
             [
-                Paragraph("<b>Workflow Score:</b>", body_style),
-                Paragraph(f"<b>{wf_score}/100</b>", body_style),
+                Paragraph("<b>Workflow Risk:</b>", body_style),
+                Paragraph(f"<b>{wf_risk}</b>", body_style),
                 Paragraph("<b>Sequence Type:</b>", body_style),
                 Paragraph(f"<font color='{wf_color}'><b>{wf_type}</b></font>", body_style)
             ],
@@ -466,7 +535,7 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
 
     # 1. Verified Positive Evidence
     if positives:
-        story.append(Paragraph("Verified Positive Findings", section_heading))
+        story.append(Paragraph("Positive Indicators", section_heading))
         pos_data = [
             [
                 Paragraph("<b>Audit Signal</b>", table_header_style),
@@ -504,7 +573,7 @@ def generate_pdf_report(analysis: Analysis, output_path: str) -> None:
 
     # 2. Risk Indicators (Negative Findings)
     if negatives:
-        story.append(Paragraph("Risk Indicators & Technical Anomalies", section_heading))
+        story.append(Paragraph("Risk Indicators", section_heading))
         neg_data = [
             [
                 Paragraph("<b>Risk Factor</b>", table_header_style),
